@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solveur REA — Réseaux Électriques Avancés</title>
+<style>
+  :root{
+    --bg:#e9edf2; --panel:#ffffff; --panel2:#f6f8fb; --ink:#16202e; --muted:#5d6b7d;
+    --line:#d3dbe5; --line2:#e6ebf1; --cu:#b5651d; --cu-soft:#f3e2d3; --blu:#1f5fa8;
+    --blu-soft:#e2ecf7; --ok:#1f8a5b; --bad:#cf3f3f; --warn:#b9821f;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.55;font-weight:450}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 80px}
+  header.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:6px}
+  header.top h1{font-size:20px;margin:0;letter-spacing:-0.01em}
+  header.top .sub{color:var(--muted);font-size:12.5px}
+  header.top .badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--cu);border:1px solid var(--cu);border-radius:3px;padding:2px 7px;white-space:nowrap}
+  .tabs{display:flex;gap:4px;margin:16px 0 18px;flex-wrap:wrap}
+  .tab{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+    padding:9px 15px;border-radius:6px 6px 0 0;cursor:pointer;font-family:var(--sans);font-size:13.5px;font-weight:600;border-bottom:2px solid transparent}
+  .tab .n{font-family:var(--mono);color:var(--cu);margin-right:7px;font-size:12px}
+  .tab:hover{background:var(--panel2)}
+  .tab.active{color:var(--ink);border-color:var(--line);border-bottom:2px solid var(--cu);background:var(--panel)}
+  .module{display:none}
+  .module.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:18px}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:16px 16px 18px;margin-bottom:18px}
+  .card h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .card h2 .dot{width:7px;height:7px;border-radius:50%;background:var(--cu)}
+  .card .lead{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+  .blockttl{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--blu);margin:16px 0 7px}
+  table.in{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
+  table.in th{font-family:var(--sans);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);text-align:left;padding:3px 6px;border-bottom:1px solid var(--line)}
+  table.in td{padding:2px 4px;border-bottom:1px solid var(--line2)}
+  table.in input,table.in select{width:100%;border:1px solid var(--line);border-radius:4px;padding:6px 7px;font-family:var(--mono);font-size:13.5px;background:var(--panel2);color:var(--ink)}
+  table.in input:focus,table.in select:focus{outline:none;border-color:var(--blu);background:#fff}
+  .rowx{appearance:none;border:none;background:none;color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px}
+  .rowx:hover{color:var(--bad)}
+  .fieldrow{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field label{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+  .field input,.field select{border:1px solid var(--line);border-radius:5px;padding:7px 9px;font-family:var(--mono);font-size:13.5px;background:var(--panel2);min-width:88px}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--blu);background:#fff}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .btn{appearance:none;border:1px solid var(--blu);background:var(--blu);color:#fff;padding:9px 16px;border-radius:6px;font-family:var(--sans);font-weight:600;font-size:13px;cursor:pointer}
+  .btn:hover{background:#19508d}
+  .btn.ghost{background:#fff;color:var(--blu)}
+  .btn.ghost:hover{background:var(--blu-soft)}
+  .btn.add{border-style:dashed;border-color:var(--line);color:var(--muted);background:#fff;padding:6px 12px;font-size:12px;font-weight:600}
+  .btn.add:hover{border-color:var(--cu);color:var(--cu)}
+  /* results */
+  .res{min-height:60px}
+  .res .placeholder{color:var(--muted);font-size:12.5px;padding:20px;text-align:center;border:1px dashed var(--line);border-radius:8px}
+  .step{border-left:2px solid var(--cu);padding:2px 0 2px 13px;margin:0 0 14px}
+  .step .lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--cu);margin-bottom:4px}
+  .step p{margin:3px 0;font-size:14.5px}
+  .eq{font-family:var(--mono);font-size:14.5px;font-weight:500;background:var(--panel2);border:1px solid var(--line2);border-radius:5px;padding:7px 10px;margin:6px 0;overflow-x:auto;white-space:pre;color:var(--ink)}
+  .mat{font-family:var(--mono);font-size:13.5px;white-space:pre;overflow-x:auto;background:var(--panel2);border:1px solid var(--line2);border-radius:5px;padding:8px 10px;margin:6px 0}
+  table.out{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin:6px 0}
+  table.out th{background:var(--ink);color:#fff;font-family:var(--sans);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;padding:5px 8px;text-align:right}
+  table.out th:first-child{text-align:left;border-radius:5px 0 0 0}
+  table.out th:last-child{border-radius:0 5px 0 0}
+  table.out td{padding:5px 9px;font-size:13.5px;text-align:right;border-bottom:1px solid var(--line2)}
+  table.out td:first-child{text-align:left}
+  table.out tr.hot td{background:var(--cu-soft)}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px}
+  .kpi{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:10px 12px}
+  .kpi .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+  .kpi .v{font-family:var(--mono);font-size:22px;font-weight:700;margin-top:2px}
+  .kpi.cu .v{color:var(--cu)} .kpi.blu .v{color:var(--blu)}
+  .verdict{display:flex;align-items:center;gap:10px;border-radius:8px;padding:12px 14px;margin:12px 0;font-weight:600}
+  .verdict.ok{background:#e7f6ef;color:var(--ok);border:1px solid #b6e2cd}
+  .verdict.bad{background:#fbe9e9;color:var(--bad);border:1px solid #f0c4c4}
+  .verdict .big{font-size:16px}
+  .err{background:#fbe9e9;color:var(--bad);border:1px solid #f0c4c4;border-radius:7px;padding:10px 12px;font-size:12.5px}
+  svg.dia{width:100%;height:auto;background:var(--panel2);border:1px solid var(--line2);border-radius:7px;margin:8px 0}
+  .note{font-size:11.5px;color:var(--muted);margin:8px 0 0;padding-left:13px;border-left:2px solid var(--line)}
+  .mdwrap{margin:6px 0}
+  .mdbox{width:100%;min-height:280px;font-family:var(--mono);font-size:12.5px;line-height:1.55;border:1px solid var(--line);border-radius:8px;padding:14px 12px 12px;background:#1a2230;color:#e6ebf1;resize:vertical}
+  .openbtn,.copybtn{display:inline-block;margin:0 8px 8px 0;border-radius:6px;padding:8px 14px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;border:1px solid}
+  .openbtn{border-color:var(--blu);background:var(--blu);color:#fff}
+  .openbtn:hover{background:#19508d}
+  .copybtn{border-color:var(--cu);background:var(--cu);color:#fff}
+  .copybtn:hover{background:#9c560f}
+  .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin:10px 0 2px;cursor:pointer;user-select:none}
+  .chk input{width:16px;height:16px;cursor:pointer;accent-color:var(--cu)}
+  details.guide{background:var(--blu-soft);border:1px solid #bcd4ee;border-radius:9px;margin-bottom:18px;overflow:hidden}
+  details.guide summary{cursor:pointer;padding:12px 16px;font-weight:700;font-size:13px;color:var(--blu);list-style:none}
+  details.guide summary::-webkit-details-marker{display:none}
+  details.guide[open] summary{border-bottom:1px solid #cfe0f2}
+  .gbody{padding:12px 18px 16px;font-size:12.5px;color:var(--ink)}
+  .gbody p{margin:8px 0}
+  .gbody ul{margin:6px 0;padding-left:20px}
+  .gbody li{margin:4px 0}
+  .gwarn{background:#fdf3e3;border:1px solid #f0d9b0;border-radius:6px;padding:9px 12px;color:#8a5a12;font-size:12px}
+  .wizcard{border:1.5px solid var(--cu)}
+  .wizres{margin-top:14px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:14px}
+  .wizres-h{font-weight:700;color:var(--ok);margin-bottom:6px;font-size:13px}
+  .wizres ol{margin:6px 0;padding-left:20px}
+  .wizres li{margin:4px 0;font-size:12.5px}
+  .wizres-warn{background:#fbe9e9;border:1px solid #f0c4c4;border-radius:6px;padding:9px 12px;margin:10px 0;font-size:12px;color:#a23a3a}
+  .wizres-warn ul{margin:5px 0;padding-left:18px}
+  #wizFollow .field{margin-bottom:8px}
+  #wizFollow .field select{min-width:340px;max-width:100%}
+  .hint{font-size:11.5px;color:var(--muted)}
+  .foot{margin-top:26px;color:var(--muted);font-size:11.5px;border-top:1px solid var(--line);padding-top:12px}
+  sub{font-size:.78em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Solveur REA</h1>
+    <span class="sub">Réseaux Électriques Avancés — résolution automatique détaillée</span>
+    <span class="badge">Estimation · Fidélité · Stabilité · Load Flow</span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-m="se"><span class="n">01</span>Estimation d'état</button>
+    <button class="tab" data-m="rel"><span class="n">02</span>Calcul de fidélité</button>
+    <button class="tab" data-m="eac"><span class="n">03</span>Stabilité angulaire</button>
+    <button class="tab" data-m="pf"><span class="n">04</span>Load Flow</button>
+    <button class="tab" data-m="ed"><span class="n">05</span>Répartition éco.</button>
+    <button class="tab" data-m="sc"><span class="n">06</span>Court-circuit</button>
+    <button class="tab" data-m="lfc"><span class="n">07</span>Réglage f/P</button>
+  </div>
+
+  <details class="guide">
+    <summary>❔ Comment l'utiliser — guide express (cliquer pour ouvrir)</summary>
+    <div class="gbody">
+      <p><b>1. Identifiez le problème</b> et choisissez l'onglet :</p>
+      <ul>
+        <li><b>Estimation d'état</b> — on vous donne des <i>mesures</i> (flux de puissance, angles) et on cherche les <i>angles de tension inconnus</i> du réseau.</li>
+        <li><b>Calcul de fidélité</b> — des générateurs avec leur <i>taux de panne</i> (FOR ou λ,μ) et une <i>courbe de charge</i> ; on cherche LOLP / LOLE / ELNS.</li>
+        <li><b>Stabilité angulaire</b> — un <i>générateur relié au réseau</i> ; après un défaut ou une ouverture de ligne, reste-t-il stable ? angle max ? temps critique ?</li>
+        <li><b>Load Flow</b> — un <i>réseau de plusieurs nœuds</i> ; on cherche les tensions/angles (Y-bus, Gauss-Seidel, Newton-Raphson, DC), les puissances injectées et les pertes.</li>
+        <li><b>Répartition éco.</b> — plusieurs <i>générateurs avec des coûts</i> ; on répartit la production au moindre coût (λ, prix de marché, limites, pertes).</li>
+        <li><b>Court-circuit</b> — <i>courant de défaut</i> en un point (triphasé, monophasé-terre, biphasé, biphasé-terre) à partir des impédances de séquence, + composantes symétriques.</li>
+        <li><b>Réglage f/P</b> — <i>écart de fréquence</i> après une variation de charge (statisme, partage entre générateurs, interconnexion à deux zones, ACE).</li>
+      </ul>
+      <p><b>2. Remplissez les champs</b> avec les nombres de l'énoncé (chaque champ est étiqueté ; survolez les notes en gris). <b>3. Cliquez « Résoudre ».</b> <b>4. Vérifiez les hypothèses</b> affichées (nœud bilan, ligne retirée, position du défaut) — elles doivent correspondre à l'énoncé. <b>5. Copiez la « Réponse type (Markdown) »</b> en bas et recopiez-la sur votre copie.</p>
+      <p class="gwarn">⚠️ L'outil ne lit pas l'énoncé à votre place : à vous de saisir les bons chiffres et de choisir la bonne option (ex. position du défaut). Un mauvais nombre = une réponse fausse mais bien présentée. Vérifiez toujours les hypothèses avant de rendre.</p>
+    </div>
+  </details>
+
+  <!-- ============ CONFIGURATEUR ============ -->
+  <div class="card wizcard">
+    <h2><span class="dot"></span>Configurateur — répondez, le solveur se règle</h2>
+    <p class="lead">Vous ne savez pas quel onglet ni quelles options choisir ? Répondez à ces questions : le configurateur identifie le problème, vous dit exactement quoi entrer, et signale les cas qu'il ne sait pas résoudre.</p>
+    <div class="field" style="margin-bottom:8px"><label>Que cherche le problème ?</label>
+      <select id="wz_type" onchange="wizRender()">
+        <option value="">— choisir —</option>
+        <option value="se">Des angles / tensions inconnus à partir de mesures</option>
+        <option value="rel">Une probabilité de défaillance / LOLP / fidélité d'un parc</option>
+        <option value="eac">Si un générateur reste stable / un angle après défaut ou ouverture</option>
+        <option value="pf">Tensions / angles / flux d'un réseau (load flow, Y-bus)</option>
+        <option value="ed">Répartir la production au moindre coût (dispatch, λ, prix)</option>
+        <option value="sc">Courant de court-circuit / défaut (triphasé, dissymétrique)</option>
+        <option value="lfc">Fréquence après variation de charge / statisme / interconnexion</option>
+        <option value="other">Autre (HVDC, FACTS, IBR…)</option>
+      </select></div>
+    <div id="wizFollow"></div>
+    <div class="btnrow"><button class="btn" onclick="wizRun()">Configurer le solveur</button><button class="btn ghost" onclick="wizReset()">Réinitialiser</button></div>
+    <div id="wizOut"></div>
+  </div>
+
+  <!-- ============ MODULE 1 : STATE ESTIMATION ============ -->
+  <section class="module active" id="m-se">
+    <div class="grid">
+      <div class="card">
+        <h2><span class="dot"></span>Entrer le système</h2>
+        <p class="lead">DC Load Flow + moindres carrés pondérés. Définissez les nœuds, les réactances de lignes et les mesures.</p>
+
+        <div class="fieldrow">
+          <div class="field"><label>S<sub>base</sub> (MVA)</label><input id="se_sbase" value="100"></div>
+        </div>
+
+        <div class="blockttl">Nœuds</div>
+        <table class="in"><thead><tr><th style="width:60px">#</th><th>Type</th><th style="width:34px"></th></tr></thead><tbody id="se_bus"></tbody></table>
+        <button class="btn add" onclick="addBus()">+ nœud</button>
+
+        <div class="blockttl">Lignes (réactances, pu)</div>
+        <table class="in"><thead><tr><th>De</th><th>Vers</th><th>X (pu)</th><th style="width:34px"></th></tr></thead><tbody id="se_line"></tbody></table>
+        <button class="btn add" onclick="addLine()">+ ligne</button>
+
+        <div class="blockttl">Mesures</div>
+        <table class="in"><thead><tr><th>Type</th><th>i</th><th>j</th><th>Valeur</th><th>σ</th><th style="width:34px"></th></tr></thead><tbody id="se_meas"></tbody></table>
+        <button class="btn add" onclick="addMeas()">+ mesure</button>
+        <p class="note">Flux : i→j en MW (σ en MW). Injection : i = nœud, j vide, P injecté en MW. Angle θ : i = nœud, j vide, valeur en rad (σ en rad).</p>
+        <label class="chk"><input type="checkbox" id="se_bad"> Détecter les mauvaises données (test du χ² + résidus normalisés)</label>
+
+        <div class="btnrow">
+          <button class="btn" onclick="solveSE()">Résoudre</button>
+          <button class="btn ghost" onclick="loadSE()">Charger l'exemple 2024</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="dot"></span>Solution détaillée</h2>
+        <div id="se_dia"></div>
+        <div class="res" id="se_out"><div class="placeholder">Entrez un système puis cliquez « Résoudre », ou chargez l'exemple.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODULE 2 : RELIABILITY ============ -->
+  <section class="module" id="m-rel">
+    <div class="grid">
+      <div class="card">
+        <h2><span class="dot"></span>Entrer le système</h2>
+        <p class="lead">Générateurs / lignes avec FOR (ou λ et μ), plus une courbe de charge classée. Calcule COPT, LOLP, LOLE, ELNS.</p>
+
+        <div class="blockttl">Unités (générateurs &amp; lignes)</div>
+        <table class="in"><thead><tr><th>Nom</th><th>Cap (MW)</th><th>Mode</th><th>FOR / λ</th><th>μ</th><th style="width:34px"></th></tr></thead><tbody id="rel_unit"></tbody></table>
+        <button class="btn add" onclick="addUnit()">+ unité</button>
+        <p class="note">Mode « λ,μ » : FOR = λ / (λ + μ). Laissez μ vide en mode FOR.</p>
+
+        <div class="blockttl">Courbe de charge (Load Duration Curve)</div>
+        <table class="in"><thead><tr><th>Durée (%)</th><th>Charge (MW)</th><th style="width:34px"></th></tr></thead><tbody id="rel_ldc"></tbody></table>
+        <button class="btn add" onclick="addLdc()">+ point</button>
+        <div class="fieldrow" style="margin-top:10px">
+          <div class="field"><label>Période</label>
+            <select id="rel_period"><option value="365">365 jours / an</option><option value="8760">8760 heures / an</option></select></div>
+        </div>
+
+        <div class="btnrow">
+          <button class="btn" onclick="solveRel()">Résoudre</button>
+          <button class="btn ghost" onclick="loadRel()">Charger l'exemple 2023</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="dot"></span>Solution détaillée</h2>
+        <div id="rel_dia"></div>
+        <div class="res" id="rel_out"><div class="placeholder">Entrez les unités et la courbe de charge, puis « Résoudre ».</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODULE 3 : EQUAL AREA ============ -->
+  <section class="module" id="m-eac">
+    <div class="grid">
+      <div class="card">
+        <h2><span class="dot"></span>Entrer le système</h2>
+        <p class="lead">Générateur — transformateur — deux lignes — réseau. Critère des aires égales.</p>
+
+        <div class="fieldrow">
+          <div class="field"><label>f (Hz)</label><input id="e_f" value="50"></div>
+          <div class="field"><label>S<sub>base</sub> (MVA)</label><input id="e_sb" value="100"></div>
+          <div class="field"><label>U réseau (pu)</label><input id="e_u" value="1"></div>
+        </div>
+        <div class="blockttl">Générateur</div>
+        <div class="fieldrow">
+          <div class="field"><label>E excitation (pu)</label><input id="e_E" value="1.05"></div>
+          <div class="field"><label>X″<sub>d</sub> (pu)</label><input id="e_xd" value="0.05"></div>
+          <div class="field"><label>H (s)</label><input id="e_H" value="5"></div>
+          <div class="field"><label>P<sub>m</sub> (pu)</label><input id="e_pm" value="0.5"></div>
+        </div>
+        <div class="blockttl">Réseau de liaison</div>
+        <div class="fieldrow">
+          <div class="field"><label>X<sub>T</sub> transfo (pu)</label><input id="e_xt" value="0.05"></div>
+          <div class="field"><label>X<sub>L1</sub> (pu)</label><input id="e_xl1" value="0.4"></div>
+          <div class="field"><label>X<sub>L2</sub> (pu)</label><input id="e_xl2" value="0.1"></div>
+        </div>
+        <div class="blockttl">Scénario</div>
+        <div class="fieldrow">
+          <div class="field"><label>Type</label>
+            <select id="e_sc" onchange="scToggle()">
+              <option value="open">Ouverture disjoncteurs (sans défaut) → δ max</option>
+              <option value="cc">Court-circuit, effacé après t (ligne L2 ouverte)</option>
+            </select></div>
+          <div class="field" id="e_tcwrap" style="display:none"><label>Durée défaut t (ms)</label><input id="e_tc" value="200"></div>
+        </div>
+        <div class="fieldrow" id="e_fposwrap" style="display:none">
+          <div class="field"><label>Position du défaut</label>
+            <select id="e_fpos" onchange="scToggle()">
+              <option value="depart">Au départ de L2 (P_max pendant = 0)</option>
+              <option value="frac">Au milieu / fraction k de L2 (calcul auto)</option>
+              <option value="manuel">P_max pendant connu (saisir)</option>
+            </select></div>
+          <div class="field" id="e_kwrap" style="display:none"><label>k (0 = départ, 1 = arrivée)</label><input id="e_k" value="0.5"></div>
+          <div class="field" id="e_pdwrap" style="display:none"><label>P<sub>max</sub> pendant (pu)</label><input id="e_pd" value="0"></div>
+        </div>
+        <p class="note">« Au départ de L2 » = défaut triphasé juste après le poste (cas des examens). « Fraction k » = défaut le long de la ligne : le programme calcule lui-même P_max pendant le défaut par réduction du réseau (Kron). On retire L2 après l'événement (ligne restante = L1).</p>
+
+        <div class="btnrow">
+          <button class="btn" onclick="solveEAC()">Résoudre</button>
+          <button class="btn ghost" onclick="loadEACopen()">Exemple 2024 (ouverture)</button>
+          <button class="btn ghost" onclick="loadEACcc()">Exemple 2023 (court-circuit)</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="dot"></span>Solution détaillée</h2>
+        <div id="eac_dia"></div>
+        <div class="res" id="eac_out"><div class="placeholder">Renseignez les paramètres puis « Résoudre », ou chargez un exemple.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODULE 4 : POWER FLOW ============ -->
+  <section class="module" id="m-pf">
+    <div class="grid">
+      <div class="card">
+        <h2><span class="dot"></span>Entrer le réseau</h2>
+        <p class="lead">Per-unit, Y-bus, puissances injectées, et résolution par Gauss-Seidel, Newton-Raphson (avec Jacobien) ou DC.</p>
+        <div class="fieldrow">
+          <div class="field"><label>S<sub>base</sub> (MVA)</label><input id="pf_sbase" value="100"></div>
+          <div class="field"><label>Méthode</label>
+            <select id="pf_method">
+              <option value="nr">Newton-Raphson (+ Jacobien)</option>
+              <option value="gs">Gauss-Seidel</option>
+              <option value="dc">DC power flow</option>
+            </select></div>
+        </div>
+        <div class="blockttl">Nœuds</div>
+        <table class="in"><thead><tr><th>#</th><th>Type</th><th>|V|</th><th>θ°</th><th>P (pu)</th><th>Q (pu)</th><th style="width:30px"></th></tr></thead><tbody id="pf_bus"></tbody></table>
+        <button class="btn add" onclick="pfAddBus()">+ nœud</button>
+        <p class="note">Slack : |V|, θ donnés. PV : P, |V| donnés. PQ : P, Q donnés. P&gt;0 = production, P&lt;0 = charge.</p>
+        <div class="blockttl">Branches (lignes / transfos, pu)</div>
+        <table class="in"><thead><tr><th>De</th><th>Vers</th><th>R</th><th>X</th><th>B/2</th><th>tap</th><th style="width:30px"></th></tr></thead><tbody id="pf_br"></tbody></table>
+        <button class="btn add" onclick="pfAddBr()">+ branche</button>
+        <p class="note">B/2 = demi-susceptance shunt de ligne (0 si négligée). tap = rapport transfo (1 pour une ligne).</p>
+        <div class="btnrow">
+          <button class="btn" onclick="solvePF()">Résoudre</button>
+          <button class="btn ghost" onclick="loadPF()">Charger un exemple 3 nœuds</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="dot"></span>Solution détaillée</h2>
+        <div class="res" id="pf_out"><div class="placeholder">Entrez le réseau puis « Résoudre », ou chargez l'exemple.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODULE 5 : ECONOMIC DISPATCH ============ -->
+  <section class="module" id="m-ed">
+    <div class="grid">
+      <div class="card">
+        <h2><span class="dot"></span>Répartition économique</h2>
+        <p class="lead">Coût $C_i=a_i+b_i P_i+c_i P_i^2$. Égalité des coûts incrémentaux (λ), limites des générateurs, pertes (facteurs de pénalité) et prix de marché.</p>
+        <div class="fieldrow">
+          <div class="field"><label>Demande P<sub>D</sub> (MW)</label><input id="ed_pd" value="800"></div>
+          <div class="field"><label>Modèle de pertes</label>
+            <select id="ed_loss">
+              <option value="none">Aucune (sans pertes)</option>
+              <option value="lin">Linéaire P_L = Σ mᵢ·Pᵢ</option>
+              <option value="quad">Quadratique P_L = Σ Bᵢ·Pᵢ²</option>
+            </select></div>
+        </div>
+        <div class="blockttl">Générateurs</div>
+        <table class="in"><thead><tr><th>#</th><th>a</th><th>b</th><th>c</th><th>P<sub>min</sub></th><th>P<sub>max</sub></th><th>perte (B ou m)</th><th style="width:30px"></th></tr></thead><tbody id="ed_u"></tbody></table>
+        <button class="btn add" onclick="edAddUnit()">+ générateur</button>
+        <p class="note">Coût : $b$ en $/MWh, $c$ en $/MWh². Colonne perte = $B_i$ (mode quadratique, $P_L=\sum B_iP_i^2$) <b>ou</b> $m_i=\partial P_L/\partial P_i$ (mode linéaire, ex. 0.02). Ignorée si « Aucune ».</p>
+        <div class="btnrow">
+          <button class="btn" onclick="solveED()">Résoudre</button>
+          <button class="btn ghost" onclick="loadED()">Charger un exemple</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="dot"></span>Solution détaillée</h2>
+        <div class="res" id="ed_out"><div class="placeholder">Entrez les générateurs puis « Résoudre », ou chargez l'exemple.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODULE 6 : SHORT CIRCUIT ============ -->
+  <section class="module" id="m-sc">
+    <div class="grid">
+      <div class="card">
+        <h2><span class="dot"></span>Calcul de court-circuit</h2>
+        <p class="lead">Défauts triphasé, monophasé-terre, biphasé, biphasé-terre (composantes symétriques), et transformation abc ↔ 012.</p>
+        <div class="fieldrow">
+          <div class="field"><label>Type de calcul</label>
+            <select id="sc_type" onchange="scTypeToggle()">
+              <option value="tri">Défaut triphasé symétrique</option>
+              <option value="slg">Monophasé-terre (SLG)</option>
+              <option value="ll">Biphasé (LL)</option>
+              <option value="dlg">Biphasé-terre (DLG)</option>
+              <option value="sym">Composantes symétriques (transformation)</option>
+            </select></div>
+        </div>
+        <div id="sc_zin">
+          <div class="blockttl">Impédances de séquence (pu)</div>
+          <table class="in"><thead><tr><th>Grandeur</th><th>Réel</th><th>Imag. (×j)</th></tr></thead><tbody>
+            <tr><td>E (préfaut)</td><td><input id="sc_Ere" value="1"></td><td><input id="sc_Eim" value="0"></td></tr>
+            <tr><td>Z₁ (direct = Z<sub>th</sub>)</td><td><input id="sc_Z1re" value="0"></td><td><input id="sc_Z1im" value="0.2"></td></tr>
+            <tr><td>Z₂ (inverse)</td><td><input id="sc_Z2re" value="0"></td><td><input id="sc_Z2im" value="0.2"></td></tr>
+            <tr><td>Z₀ (homopolaire)</td><td><input id="sc_Z0re" value="0"></td><td><input id="sc_Z0im" value="0.05"></td></tr>
+            <tr><td>Z<sub>f</sub> (défaut)</td><td><input id="sc_Zfre" value="0"></td><td><input id="sc_Zfim" value="0"></td></tr>
+            <tr><td>Z<sub>g</sub> (terre, DLG)</td><td><input id="sc_Zgre" value="0"></td><td><input id="sc_Zgim" value="0"></td></tr>
+          </tbody></table>
+          <div class="fieldrow">
+            <div class="field"><label>S<sub>base</sub> (MVA)</label><input id="sc_sb" value="100"></div>
+            <div class="field"><label>U<sub>base</sub> (kV, pour kA)</label><input id="sc_kv" value="20"></div>
+          </div>
+          <p class="note">Z₁ seul compte pour le triphasé. Z₀ non utilisé pour le biphasé (LL). Mettez Z<sub>f</sub>=0 pour un défaut franc.</p>
+        </div>
+        <div id="sc_symin" style="display:none">
+          <div class="blockttl">Transformation</div>
+          <div class="fieldrow"><div class="field"><label>Sens</label>
+            <select id="sc_dir"><option value="f">abc → 012 (phaseurs → séquences)</option><option value="i">012 → abc (séquences → phaseurs)</option></select></div></div>
+          <table class="in"><thead><tr><th></th><th>Module</th><th>Angle (°)</th></tr></thead><tbody>
+            <tr><td id="sc_l1">V<sub>a</sub></td><td><input id="sc_m1" value="1"></td><td><input id="sc_a1" value="0"></td></tr>
+            <tr><td id="sc_l2">V<sub>b</sub></td><td><input id="sc_m2" value="1"></td><td><input id="sc_a2" value="-120"></td></tr>
+            <tr><td id="sc_l3">V<sub>c</sub></td><td><input id="sc_m3" value="1"></td><td><input id="sc_a3" value="120"></td></tr>
+          </tbody></table>
+        </div>
+        <div class="btnrow">
+          <button class="btn" onclick="solveSC()">Résoudre</button>
+          <button class="btn ghost" onclick="loadSC()">Charger un exemple</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="dot"></span>Solution détaillée</h2>
+        <div class="res" id="sc_out"><div class="placeholder">Choisissez le type, entrez les données puis « Résoudre », ou chargez l'exemple.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODULE 7 : LOAD-FREQUENCY CONTROL ============ -->
+  <section class="module" id="m-lfc">
+    <div class="grid">
+      <div class="card">
+        <h2><span class="dot"></span>Réglage fréquence-puissance</h2>
+        <p class="lead">Statisme (droop), réponse en fréquence, partage de charge entre générateurs, et interconnexion à deux zones (tie-line, ACE).</p>
+        <div class="fieldrow">
+          <div class="field"><label>f<sub>0</sub> (Hz)</label><input id="lfc_f0" value="50"></div>
+          <div class="field"><label>Configuration</label>
+            <select id="lfc_mode" onchange="lfcToggle()">
+              <option value="1">Une zone (réponse en fréquence)</option>
+              <option value="2">Deux zones (interconnexion)</option>
+            </select></div>
+        </div>
+        <div id="lfc_1">
+          <div class="blockttl">Générateurs (statisme R en pu)</div>
+          <table class="in"><thead><tr><th>#</th><th>R (pu)</th><th style="width:30px"></th></tr></thead><tbody id="lfc_g"></tbody></table>
+          <button class="btn add" onclick="lfcAddGen()">+ générateur</button>
+          <div class="fieldrow">
+            <div class="field"><label>Amortissement charge D (pu)</label><input id="lfc_D" value="0"></div>
+            <div class="field"><label>Variation de charge ΔP<sub>L</sub> (pu)</label><input id="lfc_dpl" value="0.2"></div>
+          </div>
+          <p class="note">R = statisme : ΔP = −Δf/R. D = sensibilité de la charge à la fréquence (0 si négligée). Toutes les grandeurs en pu sur la base système.</p>
+        </div>
+        <div id="lfc_2" style="display:none">
+          <div class="blockttl">Deux zones</div>
+          <table class="in"><thead><tr><th></th><th>β (pu MW/pu Hz)</th><th>Biais B</th></tr></thead><tbody>
+            <tr><td>Zone 1</td><td><input id="lfc_b1" value="36.8"></td><td><input id="lfc_B1" value="36.8"></td></tr>
+            <tr><td>Zone 2</td><td><input id="lfc_b2" value="36.8"></td><td><input id="lfc_B2" value="36.8"></td></tr>
+          </tbody></table>
+          <div class="fieldrow"><div class="field"><label>Variation de charge zone 1 ΔP<sub>L1</sub> (pu)</label><input id="lfc_dpl1" value="0.2"></div></div>
+          <p class="note">β = 1/R<sub>éq</sub> + D de chaque zone. Biais B fixé typiquement à β. ΔP<sub>tie</sub> &lt; 0 = la zone 1 importe.</p>
+        </div>
+        <div class="btnrow">
+          <button class="btn" onclick="solveLFC()">Résoudre</button>
+          <button class="btn ghost" onclick="loadLFC()">Charger un exemple</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="dot"></span>Solution détaillée</h2>
+        <div class="res" id="lfc_out"><div class="placeholder">Entrez les données puis « Résoudre », ou chargez l'exemple.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    Outil de vérification pour la préparation à l'examen REA. Les méthodes (WLS DC, COPT par convolution, critère des aires
+    égales) suivent les exercices du cours. Vérifiez toujours les hypothèses (nœud bilan, signe des flux, ligne retirée).
+  </div>
+</div>
+
+<script>
+/* ======================= utils ======================= */
+const $=id=>document.getElementById(id);
+const DEG=180/Math.PI;
+function fmt(x,d=4){if(!isFinite(x))return "—";if(x!==0&&Math.abs(x)<1e-3)return x.toExponential(3);return (+x).toFixed(d);}
+function fsci(x,d=4){if(!isFinite(x))return "—";return (Math.abs(x)>=1e-3||x===0)?(+x).toFixed(d):x.toExponential(4);}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function mdBlock(md){return `<div class="blockttl" style="margin-top:20px">📄 Réponse rédigée — rendu LaTeX</div>
+  <div class="mdwrap"><button class="openbtn" onclick="openReport(this)">↗ Ouvrir en grand (LaTeX)</button><button class="copybtn" onclick="copyMd(this)">Copier</button><textarea class="mdbox" readonly>${esc(md)}</textarea></div>
+  <p class="hint">« Ouvrir en grand » affiche la réponse formatée (équations, matrices, résultats encadrés) dans une nouvelle fenêtre, imprimable. « Copier » récupère la source. Vérifiez d'abord les hypothèses (nœud bilan, ligne retirée, position du défaut).</p>`;}
+function copyMd(btn){const ta=btn.parentNode.querySelector('.mdbox');ta.focus();ta.select();ta.setSelectionRange(0,999999);
+  try{document.execCommand('copy');btn.textContent='Copié ✓';setTimeout(()=>btn.textContent='Copier',1600);}catch(e){btn.textContent='Sélectionnez puis Ctrl+C';}}
+
+/* ======================= LaTeX report (nouvelle fenêtre) ======================= */
+function texNum(x,d){if(!isFinite(x))return '-';if(x===0)return '0';const a=Math.abs(x);
+  if(a>=1e5||a<1e-3){const e=x.toExponential(3).split('e');return e[0]+'\\times 10^{'+parseInt(e[1])+'}';}
+  return (+x).toFixed(d);}
+function texMat(M,d){return '\\begin{bmatrix}'+M.map(r=>r.map(v=>texNum(v,d)).join(' & ')).join(' \\\\ ')+'\\end{bmatrix}';}
+function texVec(v,d){return '\\begin{bmatrix}'+v.map(x=>texNum(x,d)).join(' \\\\ ')+'\\end{bmatrix}';}
+function inl(s){return s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');}
+function mdToHtml(md){
+  const lines=md.split('\n'); let html='',inT=false,tbl=[];
+  const flush=()=>{if(!tbl.length)return;const rows=tbl.filter(r=>!/^\|[\s:|-]+\|$/.test(r));
+    let t='<table>';rows.forEach((r,ri)=>{const c=r.split('|').slice(1,-1).map(x=>inl(x.trim()));
+      t+='<tr>'+c.map(x=>ri===0?`<th>${x}</th>`:`<td>${x}</td>`).join('')+'</tr>';});html+=t+'</table>';tbl=[];};
+  for(const line of lines){
+    if(/^\s*\|.*\|\s*$/.test(line)){tbl.push(line.trim());inT=true;continue;}
+    if(inT){flush();inT=false;}
+    if(/^###\s+/.test(line))html+='<h3>'+inl(line.replace(/^###\s+/,''))+'</h3>';
+    else if(/^##\s+/.test(line))html+='<h2>'+inl(line.replace(/^##\s+/,''))+'</h2>';
+    else if(/^-\s+/.test(line))html+='<p class="li">• '+inl(line.replace(/^-\s+/,''))+'</p>';
+    else if(line.trim()!=='')html+='<p>'+inl(line)+'</p>';
+  }
+  if(inT)flush();
+  return html;
+}
+function openReport(btn){
+  const md=btn.parentNode.querySelector('.mdbox').value, body=mdToHtml(md);
+  const cfg='window.MathJax={tex:{inlineMath:[["$","$"]],displayMath:[["$$","$$"]]},chtml:{scale:1.25}};';
+  const css='*{box-sizing:border-box}body{margin:0;background:#0b0c0e;color:#f4f6f8;font-family:Georgia,"Times New Roman",serif;font-size:18px;line-height:1.7}'
+    +'.pg{max-width:920px;margin:0 auto;padding:42px 30px 90px}'
+    +'h2{font-size:25px;font-weight:700;margin:34px 0 10px;font-family:system-ui,sans-serif;border-bottom:1px solid #2a2d31;padding-bottom:7px}'
+    +'h3{font-size:20px;font-weight:700;margin:26px 0 8px;font-family:system-ui,sans-serif;color:#dfe6ee}'
+    +'p{margin:12px 0}p.li{margin:5px 0 5px 10px}'
+    +'table{border-collapse:collapse;margin:18px auto;font-size:16px}'
+    +'th,td{border:1px solid #3a3d42;padding:8px 16px;text-align:center}th{background:#16181b;font-family:system-ui,sans-serif;font-size:14px}'
+    +'strong{color:#fff;font-weight:700}mjx-container[display="true"]{margin:20px 0!important}'
+    +'.topbar{position:sticky;top:0;background:#0b0c0e;border-bottom:1px solid #2a2d31;padding:10px 30px;font-family:system-ui,sans-serif;font-size:13px;color:#9aa6b2;display:flex;gap:14px}'
+    +'.topbar b{color:#e6a24a}';
+  const doc='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Réponse — Solveur REA</title>'
+    +'<scr'+'ipt>'+cfg+'</scr'+'ipt><scr'+'ipt id="MathJax-script" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-chtml.min.js"></scr'+'ipt>'
+    +'<style>'+css+'</style></head><body><div class="topbar"><b>Solveur REA</b><span>Réponse rendue — imprimable (Ctrl+P)</span></div><div class="pg">'+body+'</div></body></html>';
+  const url=URL.createObjectURL(new Blob([doc],{type:'text/html;charset=utf-8'}));
+  const w=window.open(url,'_blank');
+  if(!w)alert('Autorisez les pop-ups pour ouvrir la réponse en nouvelle fenêtre (ou téléchargez d\'abord le fichier et ouvrez-le dans votre navigateur).');
+}
+
+/* ======================= configurateur (wizard) ======================= */
+function wizSel(id,label,opts){return `<div class="field"><label>${label}</label><select id="${id}">${opts.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select></div>`;}
+function wizRender(){
+  const t=$('wz_type').value; let h='';
+  if(t==='se'){
+    h+=wizSel('wz_se_meas','Type des mesures fournies',[['dc','Flux de puissance active P et/ou angles θ (formulation DC)'],['ac','Modules de tension |V|, puissance réactive Q ou courants (AC)']]);
+    h+=wizSel('wz_se_inj','Mesure d\'injection de puissance à un nœud ?',[['no','Non — uniquement des flux de ligne et des angles'],['yes','Oui — il y a une injection P à un nœud']]);
+    h+=wizSel('wz_se_bad','La question demande-t-elle de détecter une mauvaise donnée ?',[['no','Non, juste estimer'],['yes','Oui (test du χ² / résidu normalisé)']]);
+  }else if(t==='rel'){
+    h+=wizSel('wz_rel_fail','Données de panne des unités',[['for','Un FOR (taux d\'indisponibilité) est donné'],['lm','λ (panne) et μ (réparation) sont donnés']]);
+    h+=wizSel('wz_rel_load','Modèle de charge',[['ldc','Une courbe de durée de charge (de max à min)'],['disc','Des niveaux de charge discrets']]);
+    h+=wizSel('wz_rel_copt','La table COPT est-elle déjà fournie ?',[['no','Non — seulement les unités'],['yes','Oui — la COPT est donnée dans l\'énoncé']]);
+  }else if(t==='eac'){
+    h+=wizSel('wz_eac_lines','Lignes entre le générateur et le réseau',[['2','Deux lignes en parallèle'],['1','Une seule ligne'],['n','Plus de deux / topologie différente']]);
+    h+=wizSel('wz_eac_event','Que se passe-t-il ?',[['cc','Un court-circuit, éliminé après un temps t'],['open','Une ouverture de ligne / disjoncteur, sans défaut']]);
+    h+=wizSel('wz_eac_fpos','Si court-circuit : position du défaut',[['depart','Au départ de la ligne (près du poste)'],['frac','Au milieu / le long de la ligne']]);
+    h+=wizSel('wz_eac_given','Données fournies',[['comp','Les réactances des composants (X″d, X_T, X des lignes)'],['trans','Directement les P_max ou réactances de transfert (X1, X2, X3)']]);
+  }else if(t==='pf'){
+    h+=wizSel('wz_pf_method','Méthode demandée',[['nr','Newton-Raphson (avec Jacobien)'],['gs','Gauss-Seidel'],['dc','DC power flow'],['ybus','Seulement la matrice Y-bus / les puissances injectées']]);
+    h+=wizSel('wz_pf_ac','Type de réseau',[['ok','Lignes en pu avec R, X (et éventuellement B/2, transfos)'],['na','Données en ohms / km non converties en pu']]);
+  }else if(t==='ed'){
+    h+=wizSel('wz_ed_loss','Pertes du réseau ?',[['no','Négligées (réseau sans pertes)'],['yes','À considérer (facteurs de pénalité / coefficients B)']]);
+    h+=wizSel('wz_ed_cost','Forme des coûts',[['quad','Quadratique : $C=a+bP+cP^2$'],['other','Coûts incrémentaux donnés sous une autre forme']]);
+    h+=wizSel('wz_ed_extra','Cas particulier ?',[['no','Dispatch classique (une zone)'],['inter','Interconnexion entre deux zones'],['elastic','Demande élastique (sensible au prix)']]);
+  }else if(t==='sc'){
+    h+=wizSel('wz_sc_type','Type de défaut',[['tri','Triphasé symétrique'],['slg','Monophasé-terre (SLG)'],['ll','Biphasé (LL)'],['dlg','Biphasé-terre (DLG)'],['sym','Transformation composantes symétriques abc↔012']]);
+    h+=wizSel('wz_sc_z','Disposez-vous des impédances de séquence ?',[['ok','Oui : Z₁, Z₂, Z₀ (en pu) au point de défaut'],['net','Non : seulement le réseau (générateurs, transfos, lignes)']]);
+  }else if(t==='lfc'){
+    h+=wizSel('wz_lfc_mode','Configuration',[['1','Une seule zone (un système)'],['2','Deux zones interconnectées (tie-line)']]);
+    h+=wizSel('wz_lfc_R','Le statisme R est-il en pu ?',[['ok','Oui : R en pu sur la base système'],['pct','Donné en % ou en Hz/MW → à convertir en pu d\'abord']]);
+  }else if(t==='other'){
+    h+='<p class="gwarn" style="margin-top:6px">Ce sujet n\'est pas (encore) dans le solveur. À traiter à la main, ou avec Octave/MATPOWER + la boîte à outils de Saadat (dispatch, lfnewton, symfault…).</p>';
+  }
+  $('wizFollow').innerHTML=h; $('wizOut').innerHTML='';
+}
+function wizRun(){
+  const t=$('wz_type').value, out=$('wizOut');
+  if(!t){out.innerHTML='<div class="err">Choisissez d\'abord ce que cherche le problème.</div>';return;}
+  let scope=[], steps=[], tab=null; window._wizApply=null;
+  if(t==='se'){tab='se';
+    if($('wz_se_meas').value==='ac')scope.push('Formulation AC (tensions |V|, Q, courants) : le solveur ne traite que le DC (flux P + angles). Ce cas est à faire à la main.');
+    window._wizApply=()=>{$('se_bad').checked=$('wz_se_bad').value==='yes';};
+    steps=['Onglet « Estimation d\'état ».','Nœuds : marquez « Slack » le nœud que l\'énoncé appelle bilan (θ = 0).','Lignes : entrez la réactance X de chaque ligne (en pu).','Mesures : choisissez « Flux » (i→j, MW), « Injection » (i = nœud, MW) ou « Angle » (nœud, rad), avec σ.','Renseignez S_base, puis « Résoudre ».'];
+    if($('wz_se_inj').value==='yes')steps.push('Mesure d\'injection : utilisez le type « Injection » (le module additionne lui-même les flux des lignes connectées au nœud).');
+    if($('wz_se_bad').value==='yes')steps.push('Détection de mauvaises données : la case est cochée — le test du χ² et les résidus normalisés s\'ajoutent à la solution.');
+  }else if(t==='rel'){tab='rel';
+    if($('wz_rel_load').value==='disc')scope.push('Charge en niveaux discrets : saisissez-les comme points de la courbe (durée %, charge MW) — une marche par niveau.');
+    if($('wz_rel_copt').value==='yes')scope.push('COPT déjà donnée : entrez quand même les unités pour la reconstruire ; si elle ne correspond pas exactement, fiez-vous aux valeurs de l\'énoncé.');
+    const fail=$('wz_rel_fail').value==='lm'?'mode « λ,μ » (le solveur calcule FOR = λ/(λ+μ))':'mode « FOR »';
+    steps=['Onglet « Calcul de fidélité ».',`Unités : pour chaque générateur/ligne, capacité + ${fail}.`,'Courbe de charge : points (0 %, charge max) … (100 %, charge min).','Choisissez la période (365 j ou 8760 h), puis « Résoudre ».'];
+  }else if(t==='eac'){tab='eac';
+    if($('wz_eac_lines').value==='n')scope.push('Topologie à plus de deux lignes / différente : le solveur suppose 1 ou 2 lignes. Réduisez d\'abord le réseau à la main pour obtenir X_pré, X_pendant, X_post.');
+    if($('wz_eac_given').value==='trans')scope.push('Réactances de transfert données directement (X1, X2, X3) : le solveur part des réactances de composants. Soit vous retrouvez X″d / X_T / X lignes, soit vous appliquez le critère des aires égales à la main avec ces X.');
+    const ev=$('wz_eac_event').value, fp=$('wz_eac_fpos').value;
+    window._wizApply=()=>{$('e_sc').value=ev;if(ev==='cc')$('e_fpos').value=fp;scToggle();};
+    steps=['Onglet « Stabilité angulaire ».','f, S_base, U réseau.','Générateur : E, X″d, H, P_m.','Réseau : X_T, X_L1, X_L2.',`Scénario pré-réglé : « ${ev==='cc'?'Court-circuit':'Ouverture sans défaut'} »${ev==='cc'?', défaut « '+(fp==='frac'?'fraction k (entrez k)':'au départ de ligne')+' »':''}.`,'Puis « Résoudre ».'];
+    if($('wz_eac_lines').value==='1')steps.push('Une seule ligne : laissez le champ X_L2 vide.');
+  }else if(t==='pf'){tab='pf';
+    if($('wz_pf_ac').value==='na')scope.push('Données en ohms/km : convertissez d\'abord en pu ($Z_{pu}=Z_\\Omega/Z_{base}$, $Z_{base}=V_{base}^2/S_{base}$) avant de les entrer.');
+    const m=$('wz_pf_method').value, mm=m==='ybus'?'nr':m;
+    window._wizApply=()=>{$('pf_method').value=mm;};
+    steps=['Onglet « Load Flow ».','S_base, puis la méthode est pré-réglée.','Nœuds : Type (Slack/PV/PQ), |V|, θ, P, Q selon le type.','Branches : R, X, B/2, tap (1 pour une ligne).','Puis « Résoudre » — Y-bus, inconnues, itérations et tensions s\'affichent.'];
+    if(m==='ybus')steps.push('Vous ne voulez que la Y-bus / les injections : elles apparaissent en haut de la solution (la méthode choisie n\'affecte pas la Y-bus).');
+  }else if(t==='ed'){tab='ed';
+    if($('wz_ed_cost').value==='other')scope.push('Coûts donnés sous une autre forme : convertissez-les en $C=a+bP+cP^2$ (ou en coût incrémental $b+2cP$) avant de saisir a, b, c.');
+    if($('wz_ed_extra').value==='inter')scope.push('Interconnexion entre deux zones : entrez TOUS les générateurs des deux zones ensemble avec la demande totale ; λ commun = prix d\'échange. Le flux sur la ligne d\'interconnexion = ce qui équilibre chaque zone (à calculer ensuite à la main).');
+    if($('wz_ed_extra').value==='elastic')scope.push('Demande élastique : le solveur suppose une demande fixe. Pour une demande sensible au prix, égalez bénéfice marginal = λ à la main.');
+    const loss=$('wz_ed_loss').value==='yes';
+    steps=['Onglet « Répartition éco. ».','Demande P_D (MW).',`Générateurs : a, b, c, P_min, P_max${loss?', et le coefficient de perte B_i (≠0)':' (mettez B = 0, sans pertes)'}.`,'Puis « Résoudre » — λ (prix marginal), répartition P_i, butées et coût total s\'affichent.'];
+  }else if(t==='sc'){tab='sc';
+    const z=$('wz_sc_z').value, ty=$('wz_sc_type').value;
+    if(z==='net'&&ty!=='sym')scope.push('Réseau seul (pas d\'impédances de séquence données) : réduisez d\'abord le réseau au point de défaut pour obtenir Z₁ (=Z_th), Z₂, Z₀ — par réduction série/parallèle ou via la Z-bus = (Y-bus)⁻¹, Z_th = Z_bus[k][k]. Entrez ensuite ces impédances.');
+    window._wizApply=()=>{$('sc_type').value=ty;scTypeToggle();};
+    if(ty==='sym')steps=['Onglet « Court-circuit ».','Type = composantes symétriques.','Choisissez le sens (abc→012 ou 012→abc).','Entrez les 3 phaseurs (module ∠ angle).','« Résoudre ».'];
+    else steps=['Onglet « Court-circuit ».',`Type de défaut pré-réglé : ${({tri:'triphasé',slg:'monophasé-terre',ll:'biphasé',dlg:'biphasé-terre'})[ty]}.`,'Entrez E (préfaut), Z₁, Z₂, Z₀, Z_f (et Z_g pour DLG), en pu.','S_base et U_base (kV) pour obtenir les kA.','« Résoudre » — courants de séquence, de phase, et puissance de c-c.'];
+  }else if(t==='lfc'){tab='lfc';
+    if($('wz_lfc_R').value==='pct')scope.push('Statisme en % ou Hz/MW : convertissez en pu sur la base système ($R_{pu}=\\frac{\\Delta f/f_0}{\\Delta P/P_{base}}$) avant de l\'entrer.');
+    const m2=$('wz_lfc_mode').value;
+    window._wizApply=()=>{$('lfc_mode').value=m2;lfcToggle();};
+    if(m2==='2')steps=['Onglet « Réglage f/P ».','Configuration = deux zones.','Entrez β₁, β₂ (= 1/R_éq + D de chaque zone) et les biais B.','ΔP_L1 = variation de charge dans la zone 1.','« Résoudre » — Δf, échange tie-line et ACE.'];
+    else steps=['Onglet « Réglage f/P ».','f₀, puis configuration = une zone.','Générateurs : statisme R_i (pu).','Amortissement de charge D (0 si négligé) et variation ΔP_L (pu).','« Résoudre » — β, Δf, et partage entre générateurs.'];
+  }else{out.innerHTML='<div class="wizres-warn">Sujet hors du périmètre actuel du solveur (voir ci-dessus).</div>';return;}
+  let html=`<div class="wizres"><div class="wizres-h">✅ Configuration — voici exactement quoi faire :</div><ol>${steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`;
+  if(scope.length)html+=`<div class="wizres-warn"><b>⚠️ À vérifier / hors automatisme :</b><ul>${scope.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></div>`;
+  html+=`<button class="btn" onclick="wizGo('${tab}')">Aller au module et appliquer →</button></div>`;
+  out.innerHTML=html;
+}
+function wizGo(tab){if(window._wizApply)window._wizApply();const b=document.querySelector('.tab[data-m="'+tab+'"]');if(b)b.click();window.scrollTo({top:0,behavior:'smooth'});}
+function wizReset(){$('wz_type').value='';$('wizFollow').innerHTML='';$('wizOut').innerHTML='';}
+
+/* tabs */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.module').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active'); $('m-'+t.dataset.m).classList.add('active');
+});
+
+/* ======================= matrix ======================= */
+function transpose(A){return A[0].map((_,j)=>A.map(r=>r[j]));}
+function matmul(A,B){return A.map(r=>B[0].map((_,j)=>{let s=0;for(let k=0;k<B.length;k++)s+=r[k]*B[k][j];return s;}));}
+function inv(M){const n=M.length;const A=M.map((r,i)=>[...r,...Array.from({length:n},(_,j)=>i===j?1:0)]);
+  for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;
+    if(Math.abs(A[p][c])<1e-12)throw new Error("Système singulier (mesures insuffisantes ou redondantes).");
+    [A[c],A[p]]=[A[p],A[c]];const pv=A[c][c];for(let j=0;j<2*n;j++)A[c][j]/=pv;
+    for(let r=0;r<n;r++){if(r===c)continue;const f=A[r][c];for(let j=0;j<2*n;j++)A[r][j]-=f*A[c][j];}}
+  return A.map(r=>r.slice(n));}
+function matStr(M,d=4,pad=10){return M.map(r=>r.map(v=>fmt(v,d).padStart(pad)).join(' ')).join('\n');}
+function vecStr(v,d=4,pad=10){return v.map(x=>fmt(x,d).padStart(pad)).join('\n');}
+
+/* ======================= row builders ======================= */
+function busRow(i,t){return `<tr><td><input value="${i}" style="text-align:center"></td>
+  <td><select><option ${t=='Slack'?'selected':''}>Slack</option><option ${t=='PV'?'selected':''}>PV</option><option ${t=='PQ'?'selected':''}>PQ</option></select></td>
+  <td><button class="rowx" onclick="this.closest('tr').remove()">×</button></td></tr>`;}
+function lineRow(a,b,x){return `<tr><td><input value="${a}"></td><td><input value="${b}"></td><td><input value="${x}"></td>
+  <td><button class="rowx" onclick="this.closest('tr').remove()">×</button></td></tr>`;}
+function measRow(ty,i,j,v,s){return `<tr><td><select><option ${ty=='Flux'?'selected':''}>Flux</option><option ${ty=='Injection'?'selected':''}>Injection</option><option ${ty=='Angle'?'selected':''}>Angle</option></select></td>
+  <td><input value="${i}"></td><td><input value="${j}"></td><td><input value="${v}"></td><td><input value="${s}"></td>
+  <td><button class="rowx" onclick="this.closest('tr').remove()">×</button></td></tr>`;}
+const addBus =()=>$('se_bus').insertAdjacentHTML('beforeend',busRow($('se_bus').children.length+1,'PV'));
+const addLine=()=>$('se_line').insertAdjacentHTML('beforeend',lineRow('','',''));
+const addMeas=()=>$('se_meas').insertAdjacentHTML('beforeend',measRow('Flux','','','',''));
+
+function rd(tb){return [...tb.children].map(tr=>[...tr.querySelectorAll('input,select')].map(e=>e.value.trim()));}
+
+/* ======================= MODULE 1 : STATE ESTIMATION ======================= */
+function loadSE(){
+  $('se_sbase').value='100';
+  $('se_bus').innerHTML=busRow(1,'Slack')+busRow(2,'PV')+busRow(3,'PV');
+  $('se_line').innerHTML=lineRow(1,2,0.2)+lineRow(1,2,0.2)+lineRow(2,3,0.2)+lineRow(1,3,0.2);
+  $('se_meas').innerHTML=measRow('Flux',1,2,81,0.1)+measRow('Flux',1,2,80,0.1)+measRow('Flux',1,3,-58,0.1)+measRow('Angle',3,'',0.115,0.001);
+}
+function solveSE(){
+  const out=$('se_out');
+  try{
+    const Sb=parseFloat($('se_sbase').value);
+    const buses=rd($('se_bus')).map(r=>({id:+r[0],type:r[1]})).filter(b=>!isNaN(b.id));
+    const lines=rd($('se_line')).map(r=>({a:+r[0],b:+r[1],x:+r[2]})).filter(l=>!isNaN(l.a)&&!isNaN(l.b));
+    const meas=rd($('se_meas')).map(r=>({ty:r[0],i:+r[1],j:r[2]===''?null:+r[2],val:parseFloat(r[3]),sig:parseFloat(r[4])}))
+                 .filter(m=>!isNaN(m.i)&&!isNaN(m.val));
+    const slack=buses.find(b=>b.type==='Slack'); if(!slack)throw new Error("Aucun nœud bilan (Slack) défini.");
+    const stateBuses=buses.filter(b=>b.id!==slack.id).map(b=>b.id).sort((a,b)=>a-b);
+    const idx=Object.fromEntries(stateBuses.map((b,k)=>[b,k]));
+    const lx=(a,b)=>{const l=lines.find(l=>(l.a===a&&l.b===b)||(l.a===b&&l.b===a));return l?l.x:null;};
+
+    // build H (in state-angle basis), z (pu/rad), W
+    const H=[],z=[],wdiag=[],rows=[];
+    for(const m of meas){
+      const row=new Array(stateBuses.length).fill(0);
+      if(m.ty==='Flux'){
+        const x=lx(m.i,m.j); if(x==null)throw new Error(`Ligne ${m.i}-${m.j} introuvable (réactance).`);
+        if(m.i!==slack.id) row[idx[m.i]]+=1/x;
+        if(m.j!==slack.id) row[idx[m.j]]-=1/x;
+        z.push(m.val/Sb); wdiag.push(1/Math.pow(m.sig/Sb,2));
+        rows.push(`P<sub>${m.i}${m.j}</sub>`);
+      }else if(m.ty==='Injection'){
+        const conn=lines.filter(l=>l.a===m.i||l.b===m.i);
+        if(!conn.length)throw new Error(`Nœud ${m.i} : aucune ligne connectée pour l'injection.`);
+        for(const l of conn){const other=l.a===m.i?l.b:l.a;
+          if(m.i!==slack.id) row[idx[m.i]]+=1/l.x;
+          if(other!==slack.id) row[idx[other]]-=1/l.x;}
+        z.push(m.val/Sb); wdiag.push(1/Math.pow(m.sig/Sb,2));
+        rows.push(`P<sub>${m.i}</sub>(inj)`);
+      }else{ // Angle
+        if(m.i!==slack.id) row[idx[m.i]]=1; // else all-zero (measuring slack=0)
+        z.push(m.val); wdiag.push(1/Math.pow(m.sig,2));
+        rows.push(`θ<sub>${m.i}</sub>`);
+      }
+      H.push(row);
+    }
+    if(H.length<stateBuses.length)throw new Error("Moins de mesures que d'inconnues : système non observable.");
+    const W=wdiag.map((w,i)=>wdiag.map((_,j)=>i===j?w:0));
+    const Ht=transpose(H), HtW=matmul(Ht,W), G=matmul(HtW,H), Gi=inv(G);
+    const HtWz=matmul(HtW,z.map(v=>[v]));
+    const xh=matmul(Gi,HtWz).map(r=>r[0]);
+    const zh=matmul(H,xh.map(v=>[v])).map(r=>r[0]); // estimated measurements (pu/rad)
+
+    // render
+    let h='';
+    h+=`<div class="step"><div class="lbl">a) Variables d'état (DC Load Flow)</div>
+      <p>En DC, |V| = 1 pu partout ; les inconnues sont les <b>angles θ</b> des nœuds hors bilan. Nœud bilan = <b>${slack.id}</b> (θ<sub>${slack.id}</sub>=0).</p>
+      <div class="eq">x = [ ${stateBuses.map(b=>'θ'+b).join(' , ')} ]ᵀ   →   ${stateBuses.length} inconnue(s)</div></div>`;
+
+    h+=`<div class="step"><div class="lbl">b) Modèle de mesure  z = H·x</div>
+      <p>Flux DC : P<sub>ij</sub> = (θ<sub>i</sub> − θ<sub>j</sub>) / x<sub>ij</sub> (pu). Conversion MW→pu : ÷ S<sub>base</sub> = ${Sb}.</p>
+      <table class="out"><tr><th>Mesure</th><th>z (pu / rad)</th><th>σ</th><th>poids 1/σ²</th></tr>
+      ${meas.map((m,i)=>`<tr><td>${rows[i]}</td><td>${fmt(z[i],5)}</td><td>${fmt(m.ty==='Angle'?m.sig:m.sig/Sb,5)}</td><td>${fsci(wdiag[i])}</td></tr>`).join('')}</table>
+      <p>Matrice d'observation H (colonnes : ${stateBuses.map(b=>'θ'+b).join(', ')}) :</p>
+      <div class="mat">${matStr(H,3,9)}</div></div>`;
+
+    h+=`<div class="step"><div class="lbl">Équations normales  x̂ = (HᵀW H)⁻¹ HᵀW z</div>
+      <div class="mat">HᵀW H =
+${matStr(G,3,12)}
+
+(HᵀW H)⁻¹ =
+${matStr(Gi,5,12)}
+
+HᵀW z =
+${vecStr(HtWz.map(r=>r[0]),4,12)}</div></div>`;
+
+    h+=`<div class="step"><div class="lbl">État estimé</div>
+      <table class="out"><tr><th>Variable</th><th>rad</th><th>degrés</th></tr>
+      ${stateBuses.map((b,k)=>`<tr class="hot"><td>θ<sub>${b}</sub></td><td>${fmt(xh[k],5)}</td><td>${fmt(xh[k]*DEG,3)}°</td></tr>`).join('')}</table></div>`;
+
+    h+=`<div class="step"><div class="lbl">Vérification : flux estimés &amp; résidus</div>
+      <table class="out"><tr><th>Mesure</th><th>mesuré</th><th>estimé</th><th>résidu</th></tr>
+      ${meas.map((m,i)=>{const meso=m.val,est=m.ty==='Angle'?zh[i]:zh[i]*Sb,unit=m.ty==='Angle'?' rad':' MW';
+        return `<tr><td>${rows[i]}</td><td>${fmt(meso,3)}${unit}</td><td>${fmt(est,3)}${unit}</td><td>${fmt(meso-est,3)}</td></tr>`;}).join('')}</table>
+      <p class="hint">Des résidus faibles confirment la cohérence des mesures.</p></div>`;
+
+    const thAll={};thAll[slack.id]=0;stateBuses.forEach((b,kk)=>thAll[b]=xh[kk]);
+    const inj={};buses.forEach(b=>inj[b.id]=0);
+    lines.forEach(l=>{const p=(thAll[l.a]-thAll[l.b])/l.x;inj[l.a]+=p;inj[l.b]-=p;});
+    let md=`## Estimation d'état\n\n### a) Variables d'état\n`;
+    md+=`En DC load flow, les modules de tension valent $1\\ \\text{pu}$ ; les inconnues sont les **angles** des nœuds hors bilan. Nœud bilan : nœud ${slack.id} ($\\theta_{${slack.id}}=0$).\n\n`;
+    md+=`$$x=\\begin{bmatrix}${stateBuses.map(b=>'\\theta_{'+b+'}').join(' \\\\ ')}\\end{bmatrix}$$\n\n`;
+    md+=`### b) Modèle de mesure\nFlux DC : $P_{ij}=\\dfrac{\\theta_i-\\theta_j}{X_{ij}}$.  Conversion MW→pu : $\\div S_{base}=${Sb}$.\n\n`;
+    md+=`$$z=Hx,\\qquad H=${texMat(H,3)},\\qquad z=${texVec(z,4)}$$\n\n`;
+    md+=`Pondération : $W=\\mathrm{diag}\\!\\left(1/\\sigma_i^2\\right)$.\n\n`;
+    md+=`### c) Estimation par moindres carrés pondérés\n$$\\hat{x}=(H^{T}WH)^{-1}H^{T}Wz$$\n`;
+    md+=`$$H^{T}WH=${texMat(G,3)},\\qquad H^{T}Wz=${texVec(HtWz.map(r=>r[0]),3)}$$\n\nOn obtient :\n\n`;
+    md+=`$$${stateBuses.map((b,kk)=>'\\boxed{\\,\\theta_{'+b+'}='+texNum(xh[kk],4)+'\\ \\text{rad}\\,}').join('\\qquad ')}$$\n\n`;
+    md+=`(soit ${stateBuses.map((b,kk)=>texNum(xh[kk]*DEG,2)+'°').join(' et ')})\n\n`;
+    md+=`### Vérification des flux estimés\n`;
+    meas.forEach((m,i)=>{ if(m.ty==='Flux') md+=`$$P_{${m.i}${m.j}}=\\frac{\\theta_{${m.i}}-\\theta_{${m.j}}}{X}=${texNum(zh[i],4)}\\ \\text{pu}\\;(${texNum(zh[i]*Sb,1)}\\ \\text{MW})$$\n`;
+      else if(m.ty==='Injection') md+=`$$P_{${m.i}}^{\\,inj}=${texNum(zh[i],4)}\\ \\text{pu}\\;(${texNum(zh[i]*Sb,1)}\\ \\text{MW})$$\n`;
+      else md+=`$$\\theta_{${m.i}}^{\\,est}=${texNum(zh[i],4)}\\ \\text{rad}$$\n`; });
+    md+=`\n### Puissances injectées à chaque nœud\nEn DC : $P_i=\\displaystyle\\sum_j \\frac{\\theta_i-\\theta_j}{X_{ij}}$\n\n`;
+    buses.forEach(b=>{md+=`$$\\boxed{\\,P_{${b.id}}=${texNum(inj[b.id],3)}\\ \\text{pu}=${texNum(inj[b.id]*Sb,0)}\\ \\text{MW}\\,}$$\n`;});
+    md+=`\nÉquilibre des puissances : $\\sum_i P_i\\approx 0$, ce qui valide l'estimation.\n`;
+
+    if($('se_bad').checked){
+      const m=meas.length, ndof=m-stateBuses.length;
+      const rres=z.map((zi,i)=>zi-zh[i]);
+      const Jx=rres.reduce((s,ri,i)=>s+ri*ri*wdiag[i],0);
+      const chi2={1:3.841,2:5.991,3:7.815,4:9.488,5:11.070,6:12.592,7:14.067,8:15.507,9:16.919,10:18.307,11:19.675,12:21.026,13:22.362,14:23.685,15:24.996};
+      const thr=chi2[ndof]||(ndof+1.645*Math.sqrt(2*ndof));
+      const HGiHt=matmul(matmul(H,Gi),transpose(H));
+      const omega=rres.map((_,i)=>Math.max(1e-12,(1/wdiag[i])-HGiHt[i][i]));
+      const rN=rres.map((ri,i)=>Math.abs(ri)/Math.sqrt(omega[i]));
+      let imax=0;rN.forEach((v,i)=>{if(v>rN[imax])imax=i;});
+      const detected=ndof>0 && Jx>thr;
+      h+=`<div class="step"><div class="lbl">Détection de mauvaises données</div>
+        <p>Indice de performance J(x̂) = Σ rᵢ²/σᵢ² = <b>${fmt(Jx,4)}</b>. Degrés de liberté k = m − n = ${m} − ${stateBuses.length} = ${ndof}.</p>
+        <div class="eq">χ²(${ndof}, 5%) = ${thr.toFixed(3)} → ${ndof<=0?'pas de redondance, test impossible':(Jx>thr?'J &gt; seuil : <b>mauvaise donnée détectée</b>':'J ≤ seuil : <b>pas de mauvaise donnée</b>')}</div>
+        <table class="out"><tr><th>Mesure</th><th>résidu r</th><th>√Ω<sub>ii</sub></th><th>résidu normalisé |rᴺ|</th></tr>
+        ${meas.map((mm,i)=>`<tr${i===imax&&detected?' class="hot"':''}><td>${rows[i]}</td><td>${fmt(rres[i],4)}</td><td>${fmt(Math.sqrt(omega[i]),4)}</td><td>${fmt(rN[i],3)}</td></tr>`).join('')}</table>
+        <p class="hint">${detected?`La mesure <b>${rows[imax].replace(/<[^>]+>/g,'')}</b> a le plus grand résidu normalisé (${fmt(rN[imax],2)}${rN[imax]>3?' &gt; 3 → l\'éliminer puis ré-estimer':''}).`:'Tous les résidus normalisés sont faibles ; aucune mesure suspecte.'}</p></div>`;
+      md+=`\n### Détection de mauvaises données\nIndice de performance : $J(\\hat{x})=\\displaystyle\\sum_i \\frac{r_i^2}{\\sigma_i^2}=${fmt(Jx,4)}$, avec $k=m-n=${ndof}$ degrés de liberté.\n`;
+      md+=`$$J(\\hat{x})=${fmt(Jx,4)}\\ ${Jx>thr?'>':'\\le'}\\ \\chi^2_{${ndof},\\,0.05}=${thr.toFixed(3)}\\;\\Rightarrow\\;\\text{${ndof<=0?'pas de redondance':(Jx>thr?'mauvaise donnée détectée':'aucune mauvaise donnée')}}$$\n`;
+      md+=`Résidus normalisés $r_i^{N}=\\dfrac{|r_i|}{\\sqrt{\\Omega_{ii}}}$ avec $\\Omega=R-H(H^{T}WH)^{-1}H^{T}$ : ${meas.map((mm,i)=>`$${rN[i].toFixed(2)}$`).join(', ')}.\n`;
+      if(detected)md+=`Plus grand résidu normalisé : mesure ${imax+1} ($r^{N}=${rN[imax].toFixed(2)}$)${rN[imax]>3?` → l'éliminer et ré-estimer sans elle.`:''}\n`;
+    }
+    h+=mdBlock(md);
+    out.innerHTML=h;
+    $('se_dia').innerHTML=diagSE(buses,lines,meas,slack.id);
+  }catch(e){out.innerHTML=`<div class="err"><b>Erreur :</b> ${esc(e.message)}</div>`;$('se_dia').innerHTML='';}
+}
+function diagSE(buses,lines,meas,slack){
+  const n=buses.length,cx=230,cy=150,R=105;
+  const pos={};buses.forEach((b,k)=>{const a=-Math.PI/2+2*Math.PI*k/n;pos[b.id]={x:cx+R*Math.cos(a),y:cy+R*Math.sin(a)};});
+  let s=`<svg class="dia" viewBox="0 0 460 300">`;
+  const seen={};
+  lines.forEach(l=>{const key=[l.a,l.b].sort().join('-');const off=(seen[key]=(seen[key]||0)+1);
+    const p=pos[l.a],q=pos[l.b];if(!p||!q)return;const mx=(p.x+q.x)/2,my=(p.y+q.y)/2;
+    const dx=q.y-p.y,dy=p.x-q.x,len=Math.hypot(dx,dy)||1;const sh=(off-1)*14-7;
+    const ox=dx/len*sh,oy=dy/len*sh;
+    s+=`<path d="M ${p.x} ${p.y} Q ${mx+ox} ${my+oy} ${q.x} ${q.y}" fill="none" stroke="#1f5fa8" stroke-width="2"/>`;
+  });
+  meas.forEach(m=>{if(m.ty==='Flux'){const p=pos[m.i],q=pos[m.j];if(!p||!q)return;const mx=p.x*0.72+q.x*0.28,my=p.y*0.72+q.y*0.28;
+      s+=`<rect x="${mx-5}" y="${my-5}" width="10" height="10" transform="rotate(45 ${mx} ${my})" fill="#cf3f3f"/>`;}
+    else{const p=pos[m.i];if(!p)return;s+=`<rect x="${p.x-5}" y="${p.y+12}" width="10" height="10" transform="rotate(45 ${p.x} ${p.y+17})" fill="#1f8a5b"/>`;}});
+  buses.forEach(b=>{const p=pos[b.id];const c=b.id===slack?'#16202e':'#1f5fa8';
+    s+=`<circle cx="${p.x}" cy="${p.y}" r="15" fill="#fff" stroke="${c}" stroke-width="2.5"/>
+        <text x="${p.x}" y="${p.y+4}" text-anchor="middle" font-family="ui-monospace" font-size="12" font-weight="700" fill="${c}">${b.id}</text>
+        <text x="${p.x}" y="${p.y-20}" text-anchor="middle" font-family="system-ui" font-size="9" fill="#5d6b7d">${b.type}</text>`;});
+  s+=`<g font-family="system-ui" font-size="9" fill="#5d6b7d">
+    <rect x="12" y="268" width="8" height="8" transform="rotate(45 16 272)" fill="#cf3f3f"/><text x="26" y="275">mesure de flux P</text>
+    <rect x="150" y="268" width="8" height="8" transform="rotate(45 154 272)" fill="#1f8a5b"/><text x="164" y="275">mesure d'angle θ</text></g>`;
+  return s+`</svg>`;
+}
+
+/* ======================= MODULE 2 : RELIABILITY ======================= */
+function unitRow(n,c,mode,a,b){return `<tr><td><input value="${n}"></td><td><input value="${c}"></td>
+  <td><select onchange=""><option ${mode=='FOR'?'selected':''}>FOR</option><option ${mode=='λ,μ'?'selected':''}>λ,μ</option></select></td>
+  <td><input value="${a}"></td><td><input value="${b}"></td>
+  <td><button class="rowx" onclick="this.closest('tr').remove()">×</button></td></tr>`;}
+function ldcRow(d,l){return `<tr><td><input value="${d}"></td><td><input value="${l}"></td>
+  <td><button class="rowx" onclick="this.closest('tr').remove()">×</button></td></tr>`;}
+const addUnit=()=>$('rel_unit').insertAdjacentHTML('beforeend',unitRow('G',100,'FOR',0.02,''));
+const addLdc =()=>$('rel_ldc').insertAdjacentHTML('beforeend',ldcRow('',''));
+function loadRel(){
+  $('rel_unit').innerHTML=unitRow('G1',80,'FOR',0.02,'')+unitRow('G2',80,'FOR',0.02,'')+unitRow('G3',40,'FOR',0.01,'')+unitRow('G4',40,'FOR',0.01,'');
+  $('rel_ldc').innerHTML=ldcRow(0,200)+ldcRow(100,100);
+  $('rel_period').value='365';
+}
+function durAbove(L,pts){ // fraction of time load > L
+  if(L>=pts[0].load)return 0;
+  if(L<=pts[pts.length-1].load)return 1;
+  for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];
+    if(L<=a.load&&L>=b.load){const t=(a.load-L)/(a.load-b.load);return (a.d+t*(b.d-a.d))/100;}}
+  return 0;
+}
+function excessLoad(C,pts){ // average (load-C)+ over the year, in MW, numerical
+  let area=0,N=2000;
+  for(let k=0;k<N;k++){const d=(k+0.5)/N*100;
+    // load at duration d
+    let L=pts[pts.length-1].load;
+    for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];if(d>=a.d&&d<=b.d){const t=(d-a.d)/(b.d-a.d||1);L=a.load+t*(b.load-a.load);break;}}
+    area+=Math.max(L-C,0)/N;}
+  return area;
+}
+function solveRel(){
+  const out=$('rel_out');
+  try{
+    const rawU=rd($('rel_unit')).map(r=>({n:r[0],cap:+r[1],mode:r[2],a:parseFloat(r[3]),b:parseFloat(r[4])})).filter(u=>!isNaN(u.cap)&&u.cap>0);
+    if(!rawU.length)throw new Error("Aucune unité valide.");
+    const units=rawU.map(u=>{let FOR=u.mode==='FOR'?u.a:u.a/(u.a+u.b);return {...u,FOR};});
+    let pts=rd($('rel_ldc')).map(r=>({d:+r[0],load:+r[1]})).filter(p=>!isNaN(p.d)&&!isNaN(p.load)).sort((x,y)=>x.d-y.d);
+    if(pts.length<2)throw new Error("Courbe de charge : au moins 2 points.");
+    const T=parseFloat($('rel_period').value);
+
+    // COPT by convolution
+    let dist=new Map([[0,1]]);
+    for(const u of units){const nd=new Map();
+      for(const [x,p] of dist){nd.set(x,(nd.get(x)||0)+p*(1-u.FOR));nd.set(x+u.cap,(nd.get(x+u.cap)||0)+p*u.FOR);}
+      dist=nd;}
+    const total=units.reduce((s,u)=>s+u.cap,0);
+    const states=[...dist.entries()].map(([o,p])=>({out:o,inn:total-o,p})).sort((a,b)=>a.out-b.out);
+    let cum=1;states.forEach(s=>{s.cum=cum;cum-=s.p;});
+
+    // indices
+    let LOLP=0,ELNS=0;
+    states.forEach(s=>{s.t=durAbove(s.inn,pts);s.ex=excessLoad(s.inn,pts);LOLP+=s.p*s.t;ELNS+=s.p*s.ex;});
+    const Lmax=Math.max(...pts.map(p=>p.load));
+
+    let h='';
+    if(units.some(u=>u.mode==='λ,μ')){
+      h+=`<div class="step"><div class="lbl">FOR = λ / (λ + μ)</div>
+      <table class="out"><tr><th>Unité</th><th>λ</th><th>μ</th><th>FOR</th></tr>
+      ${units.map(u=>`<tr><td>${esc(u.n)}</td><td>${u.mode==='λ,μ'?fmt(u.a,4):'—'}</td><td>${u.mode==='λ,μ'?fmt(u.b,4):'—'}</td><td>${fmt(u.FOR,5)}</td></tr>`).join('')}</table></div>`;
+    }
+    h+=`<div class="step"><div class="lbl">Table COPT (par convolution)</div>
+      <p>Capacité totale installée = <b>${total} MW</b>. Pour chaque unité : P(X)=(1−FOR)·P<sub>anc</sub>(X)+FOR·P<sub>anc</sub>(X−C).</p>
+      <table class="out"><tr><th>État</th><th>Cap out [MW]</th><th>Cap in [MW]</th><th>Probabilité</th><th>Cumulée P(X≥)</th></tr>
+      ${states.map((s,i)=>`<tr class="${s.t>0?'hot':''}"><td>${i+1}</td><td>${s.out}</td><td>${s.inn}</td><td>${fsci(s.p)}</td><td>${fsci(s.cum)}</td></tr>`).join('')}</table>
+      <p class="hint">Lignes surlignées = états où la capacité disponible est inférieure au pic de charge (${Lmax} MW) → risque de perte.</p></div>`;
+
+    h+=`<div class="step"><div class="lbl">LOLP = Σ p<sub>i</sub> · t<sub>i</sub></div>
+      <p>t<sub>i</sub> = fraction du temps où la charge dépasse la capacité disponible (lue sur la LDC).</p>
+      <table class="out"><tr><th>Cap in</th><th>p<sub>i</sub></th><th>t<sub>i</sub></th><th>p·t</th></tr>
+      ${states.filter(s=>s.t>0).map(s=>`<tr><td>${s.inn}</td><td>${fsci(s.p)}</td><td>${fmt(s.t,4)}</td><td>${fsci(s.p*s.t)}</td></tr>`).join('')||'<tr><td colspan=4>aucun état déficitaire</td></tr>'}</table></div>`;
+
+    h+=`<div class="kpis">
+      <div class="kpi cu"><div class="k">LOLP</div><div class="v">${fsci(LOLP)}</div></div>
+      <div class="kpi blu"><div class="k">LOLE</div><div class="v">${fmt(LOLP*T,3)}</div><div class="k">${T==365?'jours/an':'heures/an'}</div></div>
+      <div class="kpi cu"><div class="k">ELNS</div><div class="v">${fmt(ELNS,4)}</div><div class="k">MW</div></div>
+      <div class="kpi blu"><div class="k">EENS</div><div class="v">${fmt(ELNS*(T==365?8760:T),2)}</div><div class="k">MWh/an</div></div></div>`;
+    h+=`<p class="note">LOLE = LOLP × période. ELNS = Σ p<sub>i</sub>·E[(charge − Cap<sub>in</sub>)⁺] (puissance moyenne non fournie) ; EENS = ELNS × 8760 h.</p>`;
+
+    let md=`## Calcul de fidélité (Reliability)\n\n`;
+    if(units.some(u=>u.mode==='λ,μ')){md+=`### Taux de défaillance forcée\n$$FOR=\\dfrac{\\lambda}{\\lambda+\\mu}$$\n\n| Unité | $\\lambda$ | $\\mu$ | FOR |\n|---|---|---|---|\n`;
+      units.forEach(u=>{md+=`| ${u.n} | ${u.mode==='λ,μ'?fmt(u.a,4):'—'} | ${u.mode==='λ,μ'?fmt(u.b,4):'—'} | ${fmt(u.FOR,5)} |\n`;});md+=`\n`;}
+    md+=`### Table COPT (capacité indisponible)\nCapacité totale installée : $C_{tot}=${total}\\ \\text{MW}$. Convolution :\n$$P(X)=(1-FOR)\\,P_{anc}(X)+FOR\\,P_{anc}(X-C)$$\n\n`;
+    md+=`| État | $C_{out}$ [MW] | $C_{in}$ [MW] | Probabilité | Cumulée $P(X\\ge)$ |\n|---|---|---|---|---|\n`;
+    states.forEach((s,i)=>{md+=`| ${i+1} | ${s.out} | ${s.inn} | ${fsci(s.p)} | ${fsci(s.cum)} |\n`;});
+    md+=`\n### Indices de fidélité\n$$LOLP=\\sum_i p_i\\,t_i$$\noù $t_i$ est la fraction du temps où la charge dépasse la capacité disponible.\n\n`;
+    md+=`| $C_{in}$ | $p_i$ | $t_i$ | $p_i\\,t_i$ |\n|---|---|---|---|\n`;
+    states.filter(s=>s.t>0).forEach(s=>{md+=`| ${s.inn} | ${fsci(s.p)} | ${fmt(s.t,4)} | ${fsci(s.p*s.t)} |\n`;});
+    md+=`\nRésultats :\n\n`;
+    md+=`$$\\boxed{\\,LOLP=${fsci(LOLP)}\\,}\\qquad \\boxed{\\,LOLE=${fmt(LOLP*T,3)}\\ \\text{${T==365?'j/an':'h/an'}}\\,}$$\n`;
+    md+=`$$\\boxed{\\,ELNS=${fmt(ELNS,4)}\\ \\text{MW}\\,}\\qquad \\boxed{\\,EENS=${fmt(ELNS*(T==365?8760:T),1)}\\ \\text{MWh/an}\\,}$$\n\n`;
+    md+=`avec $LOLE=LOLP\\times ${T}$ et $EENS=ELNS\\times 8760$.\n`;
+    h+=mdBlock(md);
+    out.innerHTML=h;
+    $('rel_dia').innerHTML=diagLDC(pts,states,total);
+  }catch(e){out.innerHTML=`<div class="err"><b>Erreur :</b> ${esc(e.message)}</div>`;$('rel_dia').innerHTML='';}
+}
+function diagLDC(pts,states,total){
+  const W=460,Hh=240,mL=52,mR=18,mT=18,mB=34,pw=W-mL-mR,ph=Hh-mT-mB;
+  const Lmax=Math.max(...pts.map(p=>p.load))*1.05;
+  const X=d=>mL+d/100*pw, Y=l=>mT+ph-(l/Lmax)*ph;
+  let s=`<svg class="dia" viewBox="0 0 ${W} ${Hh}">`;
+  // grid
+  for(let g=0;g<=4;g++){const yy=mT+ph*g/4,lv=Lmax*(1-g/4);
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="#e6ebf1"/>
+        <text x="${mL-6}" y="${yy+3}" text-anchor="end" font-family="ui-monospace" font-size="9" fill="#5d6b7d">${Math.round(lv)}</text>`;}
+  // capacity-in levels (only deficit ones)
+  states.filter(s2=>s2.inn<Lmax/1.05&&s2.t>0).forEach(s2=>{const yy=Y(s2.inn);
+    s+=`<line x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}" stroke="#b5651d" stroke-width="1" stroke-dasharray="4 3"/>
+        <text x="${W-mR}" y="${yy-3}" text-anchor="end" font-family="ui-monospace" font-size="8.5" fill="#b5651d">${s2.inn} MW dispo</text>`;});
+  // LDC line
+  let dpath=pts.map((p,i)=>`${i?'L':'M'} ${X(p.d)} ${Y(p.load)}`).join(' ');
+  s+=`<path d="${dpath}" fill="none" stroke="#1f5fa8" stroke-width="2.5"/>`;
+  // axes
+  s+=`<line x1="${mL}" y1="${mT}" x2="${mL}" y2="${mT+ph}" stroke="#16202e"/>
+      <line x1="${mL}" y1="${mT+ph}" x2="${W-mR}" y2="${mT+ph}" stroke="#16202e"/>
+      <text x="${mL+pw/2}" y="${Hh-6}" text-anchor="middle" font-family="system-ui" font-size="10" fill="#5d6b7d">Durée [%]</text>
+      <text x="14" y="${mT+ph/2}" transform="rotate(-90 14 ${mT+ph/2})" text-anchor="middle" font-family="system-ui" font-size="10" fill="#5d6b7d">Charge [MW]</text>`;
+  return s+`</svg>`;
+}
+
+/* ======================= MODULE 3 : EQUAL AREA ======================= */
+function scToggle(){const cc=$('e_sc').value==='cc';$('e_tcwrap').style.display=cc?'flex':'none';$('e_fposwrap').style.display=cc?'flex':'none';
+  const fp=cc?$('e_fpos').value:'';$('e_kwrap').style.display=fp==='frac'?'flex':'none';$('e_pdwrap').style.display=fp==='manuel'?'flex':'none';}
+function loadEACopen(){$('e_f').value=50;$('e_sb').value=100;$('e_u').value=1;$('e_E').value=1.05;$('e_xd').value=0.05;$('e_H').value=5;$('e_pm').value=0.5;$('e_xt').value=0.05;$('e_xl1').value=0.4;$('e_xl2').value=0.1;$('e_sc').value='open';scToggle();solveEAC();}
+function loadEACcc(){$('e_f').value=50;$('e_sb').value=100;$('e_u').value=1;$('e_E').value=1.0;$('e_xd').value=0.2;$('e_H').value=3;$('e_pm').value=0.8;$('e_xt').value=0.2;$('e_xl1').value=0.4;$('e_xl2').value=0.4;$('e_sc').value='cc';$('e_fpos').value='depart';$('e_tc').value=200;$('e_pd').value=0;scToggle();solveEAC();}
+function solveEAC(){
+  const out=$('eac_out');
+  try{
+    const f=+$('e_f').value,U=+$('e_u').value,E=+$('e_E').value,Xd=+$('e_xd').value,H=+$('e_H').value,Pm=+$('e_pm').value,
+          Xt=+$('e_xt').value,Xl1=+$('e_xl1').value,Xl2=+$('e_xl2').value,sc=$('e_sc').value;
+    const par=(Xl1&&Xl2)?(Xl1*Xl2)/(Xl1+Xl2):(Xl1||Xl2);
+    const Xpre=Xd+Xt+par, Pmax1=E*U/Xpre;
+    if(Pm>Pmax1)throw new Error("P_m > P_max pré-incident : pas de point d'équilibre (δ₀ inexistant).");
+    const d0=Math.asin(Pm/Pmax1);
+    const Xpost=Xd+Xt+Xl1, Pmax3=E*U/Xpost; // L2 removed
+    const k=Math.PI*f/H; // d²δ/dt² = k·(Pm−Pe)
+
+    let h=`<div class="step"><div class="lbl">Réactances &amp; puissances maximales</div>
+      <div class="eq">X<sub>L1</sub> ∥ X<sub>L2</sub> = ${fmt(par,4)} pu
+X_pré  = X″d + X_T + (L1∥L2) = ${Xd}+${Xt}+${fmt(par,4)} = ${fmt(Xpre,4)} pu
+P_max,pré  = E·U / X_pré = ${E}·${U} / ${fmt(Xpre,4)} = ${fmt(Pmax1,4)} pu
+X_post = X″d + X_T + X_L1 (L2 retirée) = ${fmt(Xpost,4)} pu
+P_max,post = ${fmt(Pmax3,4)} pu</div></div>`;
+
+    h+=`<div class="step"><div class="lbl">a) Angle avant l'incident</div>
+      <div class="eq">δ₀ = arcsin(P_m / P_max,pré) = arcsin(${Pm}/${fmt(Pmax1,4)}) = ${fmt(d0,4)} rad = ${fmt(d0*DEG,2)}°</div></div>`;
+
+    let curves={pre:Pmax1,post:Pmax3,dur:null}, dc=null, dmax=null, stable=null, A1=null,A2=null, dcc=null,tcc=null, faultDesc='';
+    const dmaxPost=Math.PI-Math.asin(Pm/Pmax3);
+
+    if(sc==='cc'){
+      const tc=(+$('e_tc').value)/1000, fp=$('e_fpos').value, Xa=Xd+Xt;
+      let Pd;
+      if(fp==='frac'){const kk=+$('e_k').value;
+        if(!(kk>0&&kk<1))throw new Error("La fraction k doit être comprise entre 0 et 1 (0 = départ de ligne, 1 = arrivée).");
+        const ya=1/Xa,y1=1/Xl1,yk=1/(kk*Xl2);Pd=E*U*ya*y1/(ya+y1+yk);
+        faultDesc=`défaut à la fraction k=${kk} de L2 → réduction du réseau (Kron) : P_max pendant = ${fmt(Pd,4)} pu`;}
+      else if(fp==='manuel'){Pd=+$('e_pd').value;faultDesc=`P_max pendant saisi = ${fmt(Pd,4)} pu`;}
+      else {Pd=0;faultDesc='défaut au départ de L2 → P_max pendant = 0';}
+      curves.dur=Pd;
+      // integrate swing numerically for generality (works for Pd=0 or Pd>0)
+      let d=d0,w=0,dt=1e-4;
+      for(let t=0;t<tc;t+=dt){const Pe=Pd*Math.sin(d);const acc=k*(Pm-Pe);w+=acc*dt;d+=w*dt;}
+      dc=d;
+      A1=intP(dd=>Pm-Pd*Math.sin(dd),d0,dc);
+      A2=intP(dd=>Pmax3*Math.sin(dd)-Pm,dc,dmaxPost);
+      stable=A2>=A1;
+      dcc=solveDcc(Pm,Pmax3,Pd,d0,dmaxPost);
+      if(dcc!=null){let dd2=d0,ww=0,tt=0;while(dd2<dcc&&tt<10){const Pe=Pd*Math.sin(dd2);ww+=k*(Pm-Pe)*dt;dd2+=ww*dt;tt+=dt;}tcc=tt;}
+      h+=`<div class="step"><div class="lbl">Pendant le défaut</div><p>${faultDesc}.</p></div>`;
+      h+=`<div class="step"><div class="lbl">b) Angle de coupure (à t = ${(+$('e_tc').value)} ms)</div>
+        <p>Équation du mouvement : d²δ/dt² = (πf/H)(P_m − P_e), avec P_e = ${fmt(curves.dur,4)}·sin δ pendant le défaut.</p>
+        <div class="eq">πf/H = ${fmt(k,3)}    →    δ_coupure = ${fmt(dc,4)} rad = ${fmt(dc*DEG,2)}°</div></div>`;
+      h+=`<div class="step"><div class="lbl">c) Critère des aires égales</div>
+        <div class="eq">A₁ (accélération, δ₀→δ_c)      = ${fmt(A1,4)}
+A₂ (décélération dispo, δ_c→δ_max) = ${fmt(A2,4)}
+δ_max,post = π − arcsin(P_m/P_max,post) = ${fmt(dmaxPost*DEG,2)}°
+δ_critique de coupure ≈ ${dcc!=null?fmt(dcc*DEG,2)+'°':'—'}${tcc!=null?'   (t_critique ≈ '+fmt(tcc*1000,1)+' ms)':''}</div></div>`;
+    }else{ // breaker opening, no fault -> find dmax
+      dmax=solveDmaxOpen(Pm,Pmax3,d0);
+      stable = dmax!=null && dmax<dmaxPost;
+      const ds=Math.asin(Pm/Pmax3);
+      A1=intP(dd=>Pm-Pmax3*Math.sin(dd),d0,ds);
+      A2=dmax!=null?intP(dd=>Pmax3*Math.sin(dd)-Pm,ds,dmax):null;
+      h+=`<div class="step"><div class="lbl">b) Angle maximum après ouverture</div>
+        <p>À l'ouverture (sans défaut), le point passe sur la courbe post (P_max=${fmt(Pmax3,4)}). Comme P_e(δ₀)=${fmt(Pmax3*Math.sin(d0),4)} &lt; P_m, le rotor accélère.</p>
+        <div class="eq">Nouvel équilibre : δ_s = arcsin(P_m/P_max,post) = ${fmt(ds*DEG,2)}°
+Aires égales :  P_m(δ_max − δ₀) = P_max,post(cos δ₀ − cos δ_max)
+δ_max = ${dmax!=null?fmt(dmax,4)+' rad = '+fmt(dmax*DEG,2)+'°':'pas de solution → instable'}</div>
+        <p>δ_critique = π − arcsin(P_m/P_max,post) = <b>${fmt(dmaxPost*DEG,2)}°</b></p></div>`;
+    }
+
+    h+=`<div class="verdict ${stable?'ok':'bad'}"><span class="big">${stable?'✓ STABLE':'✗ INSTABLE'}</span>
+      <span>${sc==='cc'?(stable?'A₂ ≥ A₁ : le générateur reste synchrone.':'A₂ &lt; A₁ : perte de synchronisme.'):(stable?'δ_max &lt; δ_critique : le générateur reste synchrone.':'δ_max ≥ δ_critique : perte de synchronisme.')}</span></div>`;
+
+    let md=`## Stabilité angulaire — critère des aires égales\n\n### Réactances et puissances maximales\n`;
+    md+=`$$X_{L1}\\parallel X_{L2}=${fmt(par,4)}\\ \\text{pu}$$\n`;
+    md+=`$$X_{pré}=X''_d+X_T+(X_{L1}\\parallel X_{L2})=${fmt(Xpre,4)}\\ \\text{pu}\\;\\Rightarrow\\; P_{max}^{pré}=\\frac{E\\,U}{X_{pré}}=${fmt(Pmax1,4)}\\ \\text{pu}$$\n`;
+    md+=`$$X_{post}=X''_d+X_T+X_{L1}=${fmt(Xpost,4)}\\ \\text{pu}\\;\\Rightarrow\\; P_{max}^{post}=${fmt(Pmax3,4)}\\ \\text{pu}$$\n\n`;
+    md+=`### a) Angle initial\n$$\\delta_0=\\arcsin\\!\\frac{P_m}{P_{max}^{pré}}=\\arcsin\\frac{${fmt(Pm,3)}}{${fmt(Pmax1,4)}}=\\boxed{\\,${fmt(d0,4)}\\ \\text{rad}=${fmt(d0*DEG,2)}^\\circ\\,}$$\n\n`;
+    if(sc==='cc'){md+=`### b) Angle de coupure\nPendant le défaut : ${faultDesc}.\n$$\\frac{d^2\\delta}{dt^2}=\\frac{\\pi f}{H}\\left(P_m-P_e\\right),\\quad P_e=${fmt(curves.dur||0,4)}\\sin\\delta,\\quad \\frac{\\pi f}{H}=${fmt(k,3)}$$\n`;
+      md+=`$$\\boxed{\\,\\delta_{c}(t=${(+$('e_tc').value)}\\,\\text{ms})=${fmt(dc*DEG,2)}^\\circ\\,}$$\n\n`;
+      md+=`### c) Critère des aires égales\n$$A_1=${fmt(A1,4)}\\quad(\\text{accélération}),\\qquad A_2=${fmt(A2,4)}\\quad(\\text{décélération dispo.})$$\n`;
+      md+=`$$\\delta_{max}^{post}=\\pi-\\arcsin\\frac{P_m}{P_{max}^{post}}=${fmt(dmaxPost*DEG,2)}^\\circ$$\n`;
+      if(dcc!=null)md+=`$$\\delta_{cc}=${fmt(dcc*DEG,2)}^\\circ${tcc!=null?`,\\qquad t_{cc}\\approx ${fmt(tcc*1000,1)}\\ \\text{ms}`:''}$$\n`;
+      md+=`\n$$\\boxed{\\;${stable?'\\text{STABLE}\\;:\\;A_2\\ge A_1':'\\text{INSTABLE}\\;:\\;A_2<A_1'}\\;}$$\n`;
+    }else{const dsm=Math.asin(Pm/Pmax3);
+      md+=`### b) Angle maximum après ouverture\nÀ l'ouverture (sans défaut), le point passe sur la courbe post. Comme $P_e(\\delta_0)=${fmt(Pmax3*Math.sin(d0),4)}<P_m$, le rotor accélère.\n`;
+      md+=`$$\\delta_s=\\arcsin\\frac{P_m}{P_{max}^{post}}=${fmt(dsm*DEG,2)}^\\circ$$\n`;
+      md+=`$$P_m(\\delta_{max}-\\delta_0)=P_{max}^{post}\\left(\\cos\\delta_0-\\cos\\delta_{max}\\right)$$\n`;
+      md+=`$$\\boxed{\\,\\delta_{max}=${dmax!=null?fmt(dmax,4)+'\\ \\text{rad}='+fmt(dmax*DEG,2)+'^\\circ':'\\text{pas de solution}'}\\,}\\qquad \\delta_{crit}=${fmt(dmaxPost*DEG,2)}^\\circ$$\n`;
+      md+=`\n$$\\boxed{\\;${stable?'\\text{STABLE}\\;:\\;\\delta_{max}<\\delta_{crit}':'\\text{INSTABLE}\\;:\\;\\delta_{max}\\ge\\delta_{crit}'}\\;}$$\n`;}
+    h+=mdBlock(md);
+    out.innerHTML=h;
+    $('eac_dia').innerHTML=diagPd(d0,curves,dc,dmax,dmaxPost,Pm,sc)+diagOneLine(sc);
+  }catch(e){out.innerHTML=`<div class="err"><b>Erreur :</b> ${esc(e.message)}</div>`;$('eac_dia').innerHTML='';}
+}
+function intP(g,a,b){let n=600,s=0,dx=(b-a)/n;for(let i=0;i<n;i++){const x=a+(i+0.5)*dx;s+=g(x)*dx;}return s;}
+function solveDmaxOpen(Pm,Pmax3,d0){ // Pm(d-d0)=Pmax3(cos d0 - cos d)
+  const F=d=>Pm*(d-d0)-Pmax3*(Math.cos(d0)-Math.cos(d));
+  let lo=Math.asin(Pm/Pmax3),hi=Math.PI-1e-6;
+  if(F(lo)*F(hi)>0)return null;
+  for(let i=0;i<200;i++){const m=(lo+hi)/2;if(F(lo)*F(m)<=0)hi=m;else lo=m;}return (lo+hi)/2;
+}
+function solveDcc(Pm,Pmax3,Pd,d0,dmax){ // A1(dcc)=A2(dcc)
+  const F=dc=>intP(d=>Pm-Pd*Math.sin(d),d0,dc)-intP(d=>Pmax3*Math.sin(d)-Pm,dc,dmax);
+  let lo=d0+1e-4,hi=dmax-1e-4;if(F(lo)*F(hi)>0)return null;
+  for(let i=0;i<200;i++){const m=(lo+hi)/2;if(F(lo)*F(m)<=0)hi=m;else lo=m;}return (lo+hi)/2;
+}
+function diagPd(d0,cv,dc,dmax,dmaxPost,Pm,sc){
+  const W=460,Hh=250,mL=44,mR=14,mT=14,mB=30,pw=W-mL-mR,ph=Hh-mT-mB;
+  const Pmx=Math.max(cv.pre,cv.post,Pm)*1.12, xMax=Math.PI;
+  const X=d=>mL+d/xMax*pw, Y=p=>mT+ph-(p/Pmx)*ph;
+  const sine=(amp,a,b)=>{let s=`M ${X(a)} ${Y(amp*Math.sin(a))}`;for(let i=1;i<=80;i++){const d=a+(b-a)*i/80;s+=` L ${X(d)} ${Y(amp*Math.sin(d))}`;}return s;};
+  let s=`<svg class="dia" viewBox="0 0 ${W} ${Hh}">`;
+  // shaded areas
+  if(sc==='open'&&dmax!=null){const ds=Math.asin(Pm/cv.post);
+    // accel d0..ds (between Pm and post curve)
+    let p1=`M ${X(d0)} ${Y(Pm)}`;for(let i=0;i<=40;i++){const d=d0+(ds-d0)*i/40;p1+=` L ${X(d)} ${Y(cv.post*Math.sin(d))}`;}p1+=` L ${X(ds)} ${Y(Pm)} Z`;
+    s+=`<path d="${p1}" fill="#1f5fa8" opacity="0.16"/>`;
+    let p2=`M ${X(ds)} ${Y(Pm)}`;for(let i=0;i<=40;i++){const d=ds+(dmax-ds)*i/40;p2+=` L ${X(d)} ${Y(cv.post*Math.sin(d))}`;}p2+=` L ${X(dmax)} ${Y(Pm)} Z`;
+    s+=`<path d="${p2}" fill="#b5651d" opacity="0.16"/>`;}
+  if(sc==='cc'&&dc!=null){const Pd=cv.dur||0;
+    let p1=`M ${X(d0)} ${Y(Pm)}`;for(let i=0;i<=40;i++){const d=d0+(dc-d0)*i/40;p1+=` L ${X(d)} ${Y(Pd*Math.sin(d))}`;}p1+=` L ${X(dc)} ${Y(Pm)} Z`;
+    s+=`<path d="${p1}" fill="#1f5fa8" opacity="0.16"/>`;
+    let p2=`M ${X(dc)} ${Y(Pm)}`;for(let i=0;i<=40;i++){const d=dc+(dmaxPost-dc)*i/40;p2+=` L ${X(d)} ${Y(cv.post*Math.sin(d))}`;}p2+=` L ${X(dmaxPost)} ${Y(Pm)} Z`;
+    s+=`<path d="${p2}" fill="#b5651d" opacity="0.16"/>`;}
+  // curves
+  s+=`<path d="${sine(cv.pre,0,Math.PI)}" fill="none" stroke="#1f5fa8" stroke-width="2"/>`;
+  s+=`<path d="${sine(cv.post,0,Math.PI)}" fill="none" stroke="#16202e" stroke-width="2"/>`;
+  if(cv.dur!=null)s+=`<path d="${sine(cv.dur,0,Math.PI)}" fill="none" stroke="#cf3f3f" stroke-width="1.6" stroke-dasharray="5 3"/>`;
+  // Pm line
+  s+=`<line x1="${mL}" y1="${Y(Pm)}" x2="${W-mR}" y2="${Y(Pm)}" stroke="#b5651d" stroke-width="1.4" stroke-dasharray="2 2"/>
+      <text x="${W-mR}" y="${Y(Pm)-3}" text-anchor="end" font-family="ui-monospace" font-size="9" fill="#b5651d">P_m</text>`;
+  // markers
+  const mk=(d,lab,col)=>d!=null?`<line x1="${X(d)}" y1="${mT}" x2="${X(d)}" y2="${mT+ph}" stroke="${col}" stroke-width="0.8" stroke-dasharray="2 3" opacity="0.7"/>
+      <text x="${X(d)}" y="${mT+ph+12}" text-anchor="middle" font-family="ui-monospace" font-size="8.5" fill="${col}">${lab}</text>`:'';
+  s+=mk(d0,'δ₀','#1f8a5b')+mk(dc,'δc','#cf3f3f')+mk(dmax,'δmax','#b5651d');
+  // axes
+  s+=`<line x1="${mL}" y1="${mT}" x2="${mL}" y2="${mT+ph}" stroke="#16202e"/>
+      <line x1="${mL}" y1="${mT+ph}" x2="${W-mR}" y2="${mT+ph}" stroke="#16202e"/>
+      <text x="${mL+pw/2}" y="${Hh-4}" text-anchor="middle" font-family="system-ui" font-size="10" fill="#5d6b7d">angle δ (0 → 180°)</text>
+      <text x="12" y="${mT+ph/2}" transform="rotate(-90 12 ${mT+ph/2})" text-anchor="middle" font-family="system-ui" font-size="10" fill="#5d6b7d">P (pu)</text>
+      <g font-family="system-ui" font-size="8.5"><rect x="${mL+6}" y="${mT+4}" width="9" height="3" fill="#1f5fa8"/><text x="${mL+18}" y="${mT+8}" fill="#5d6b7d">pré</text>
+      <rect x="${mL+44}" y="${mT+4}" width="9" height="3" fill="#16202e"/><text x="${mL+56}" y="${mT+8}" fill="#5d6b7d">post</text></g>`;
+  return s+`</svg>`;
+}
+function diagOneLine(sc){
+  let s=`<svg class="dia" viewBox="0 0 460 92" style="margin-top:0">`;
+  s+=`<circle cx="34" cy="46" r="15" fill="#fff" stroke="#1f5fa8" stroke-width="2"/><text x="34" y="50" text-anchor="middle" font-family="ui-monospace" font-size="12" font-weight="700" fill="#1f5fa8">G</text>`;
+  s+=`<line x1="49" y1="46" x2="84" y2="46" stroke="#16202e" stroke-width="2"/>`;
+  s+=`<circle cx="96" cy="46" r="11" fill="none" stroke="#16202e" stroke-width="2"/><circle cx="108" cy="46" r="11" fill="none" stroke="#16202e" stroke-width="2"/><text x="102" y="30" text-anchor="middle" font-family="system-ui" font-size="10" fill="#5d6b7d">T</text>`;
+  s+=`<line x1="119" y1="46" x2="150" y2="46" stroke="#16202e" stroke-width="2"/><line x1="150" y1="20" x2="150" y2="72" stroke="#16202e" stroke-width="2.5"/>`;
+  // two lines
+  s+=`<path d="M 150 28 Q 300 6 360 28" fill="none" stroke="#1f5fa8" stroke-width="2"/><text x="255" y="14" text-anchor="middle" font-family="system-ui" font-size="10" fill="#5d6b7d">L1</text>`;
+  s+=`<path d="M 150 64 Q 300 86 360 64" fill="none" stroke="${sc==='cc'?'#cf3f3f':'#1f5fa8'}" stroke-width="2" ${sc==='cc'?'stroke-dasharray="6 3"':''}/><text x="255" y="84" text-anchor="middle" font-family="system-ui" font-size="10" fill="#5d6b7d">L2 ${sc==='cc'?'(défaut)':'(ouverte)'}</text>`;
+  if(sc==='cc')s+=`<text x="158" y="60" font-family="ui-monospace" font-size="14" fill="#cf3f3f">⚡</text>`;
+  s+=`<line x1="360" y1="20" x2="360" y2="72" stroke="#16202e" stroke-width="2.5"/><rect x="372" y="34" width="74" height="24" rx="3" fill="#e2ecf7" stroke="#1f5fa8"/><text x="409" y="50" text-anchor="middle" font-family="system-ui" font-size="10" fill="#1f5fa8">Réseau U∠0</text>`;
+  return s+`</svg>`;
+}
+
+/* ======================= POWER FLOW ======================= */
+const Cx=(re,im=0)=>({re,im});
+const xadd=(a,b)=>Cx(a.re+b.re,a.im+b.im);
+const xsub=(a,b)=>Cx(a.re-b.re,a.im-b.im);
+const xmul=(a,b)=>Cx(a.re*b.re-a.im*b.im,a.re*b.im+a.im*b.re);
+const xconj=a=>Cx(a.re,-a.im);
+const xabs=a=>Math.hypot(a.re,a.im);
+const xarg=a=>Math.atan2(a.im,a.re);
+const xdiv=(a,b)=>{const d=b.re*b.re+b.im*b.im;return Cx((a.re*b.re+a.im*b.im)/d,(a.im*b.re-a.re*b.im)/d);};
+const xscale=(a,s)=>Cx(a.re*s,a.im*s);
+const xpolar=(m,t)=>Cx(m*Math.cos(t),m*Math.sin(t));
+function ybusBuild(n,br){const Y=Array.from({length:n},()=>Array.from({length:n},()=>Cx(0,0)));
+  for(const b of br){const a=b.a-1,c=b.b-1,t=b.tap||1,ys=xdiv(Cx(1,0),Cx(b.R,b.X));
+    Y[a][a]=xadd(Y[a][a],xscale(ys,1/(t*t)));Y[c][c]=xadd(Y[c][c],ys);
+    Y[a][c]=xsub(Y[a][c],xscale(ys,1/t));Y[c][a]=xsub(Y[c][a],xscale(ys,1/t));
+    Y[a][a]=xadd(Y[a][a],Cx(0,b.Bh||0));Y[c][c]=xadd(Y[c][c],Cx(0,b.Bh||0));}
+  return Y;}
+function pfInject(Y,V,i){let S=Cx(0,0);for(let k=0;k<V.length;k++)S=xadd(S,xmul(Y[i][k],V[k]));return xmul(V[i],xconj(S));}
+function linsolve(A,b){const n=A.length,M=A.map((r,i)=>[...r,b[i]]);
+  for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;[M[c],M[p]]=[M[p],M[c]];
+    const pv=M[c][c];if(Math.abs(pv)<1e-12)throw new Error("Système singulier (réseau non connexe ou données incohérentes).");
+    for(let j=c;j<=n;j++)M[c][j]/=pv;for(let r=0;r<n;r++){if(r===c)continue;const f=M[r][c];for(let j=c;j<=n;j++)M[r][j]-=f*M[c][j];}}
+  return M.map(r=>r[n]);}
+function pfNewton(n,buses,Y){
+  const Vm=buses.map(b=>b.V),Va=buses.map(b=>b.th),pq=[],nonsl=[];
+  buses.forEach((b,i)=>{if(b.type!=='slack')nonsl.push(i);if(b.type==='pq')pq.push(i);});
+  const G=(i,k)=>Y[i][k].re,B=(i,k)=>Y[i][k].im,th=(i,k)=>Va[i]-Va[k];
+  const Pc=i=>{let s=0;for(let k=0;k<n;k++)s+=Vm[i]*Vm[k]*(G(i,k)*Math.cos(th(i,k))+B(i,k)*Math.sin(th(i,k)));return s;};
+  const Qc=i=>{let s=0;for(let k=0;k<n;k++)s+=Vm[i]*Vm[k]*(G(i,k)*Math.sin(th(i,k))-B(i,k)*Math.cos(th(i,k)));return s;};
+  let J0=null,mis0=null,dx0=null,it=0,mm=1;const na=nonsl.length,nv=pq.length;
+  for(it=0;it<30;it++){
+    const dP=nonsl.map(i=>buses[i].P-Pc(i)),dQ=pq.map(i=>buses[i].Q-Qc(i)),mis=[...dP,...dQ];
+    mm=Math.max(...mis.map(Math.abs));if(mm<1e-9)break;
+    const J=Array.from({length:na+nv},()=>new Array(na+nv).fill(0));
+    for(let r=0;r<na;r++){const i=nonsl[r];
+      for(let c=0;c<na;c++){const j=nonsl[c];J[r][c]=(i===j)?-Qc(i)-B(i,i)*Vm[i]*Vm[i]:Vm[i]*Vm[j]*(G(i,j)*Math.sin(th(i,j))-B(i,j)*Math.cos(th(i,j)));}
+      for(let c=0;c<nv;c++){const j=pq[c];J[r][na+c]=(i===j)?Pc(i)/Vm[i]+G(i,i)*Vm[i]:Vm[i]*(G(i,j)*Math.cos(th(i,j))+B(i,j)*Math.sin(th(i,j)));}}
+    for(let r=0;r<nv;r++){const i=pq[r];
+      for(let c=0;c<na;c++){const j=nonsl[c];J[na+r][c]=(i===j)?Pc(i)-G(i,i)*Vm[i]*Vm[i]:-Vm[i]*Vm[j]*(G(i,j)*Math.cos(th(i,j))+B(i,j)*Math.sin(th(i,j)));}
+      for(let c=0;c<nv;c++){const j=pq[c];J[na+r][na+c]=(i===j)?Qc(i)/Vm[i]-B(i,i)*Vm[i]:Vm[i]*(G(i,j)*Math.sin(th(i,j))-B(i,j)*Math.cos(th(i,j)));}}
+    const dx=linsolve(J,mis);
+    if(it===0){J0=J;mis0=mis;dx0=dx;}
+    nonsl.forEach((i,r)=>Va[i]+=dx[r]);pq.forEach((i,r)=>Vm[i]+=dx[na+r]);
+  }
+  return {Vm,Va,it,mm,J0,mis0,dx0,nonsl,pq};
+}
+function pfGauss(n,buses,Y){const V=buses.map(b=>xpolar(b.V,b.th));let it,V1=null;
+  for(it=0;it<400;it++){let md=0;
+    for(let i=0;i<n;i++){if(buses[i].type==='slack')continue;
+      let sum=Cx(0,0);for(let k=0;k<n;k++)if(k!==i)sum=xadd(sum,xmul(Y[i][k],V[k]));
+      let Pi=buses[i].P,Qi=buses[i].Q;
+      if(buses[i].type==='pv'){let s2=Cx(0,0);for(let k=0;k<n;k++)s2=xadd(s2,xmul(Y[i][k],V[k]));Qi=-xmul(xconj(V[i]),s2).im;}
+      let Vn=xdiv(xsub(xdiv(Cx(Pi,-Qi),xconj(V[i])),sum),Y[i][i]);
+      if(buses[i].type==='pv')Vn=xpolar(buses[i].V,xarg(Vn));
+      md=Math.max(md,xabs(xsub(Vn,V[i])));V[i]=Vn;}
+    if(it===0)V1=V.map(v=>Cx(v.re,v.im));
+    if(md<1e-9)break;}
+  return {V,it,V1};}
+function pfDC(n,buses,br){const sl=buses.findIndex(b=>b.type==='slack');
+  const B=Array.from({length:n},()=>new Array(n).fill(0));
+  for(const b of br){const a=b.a-1,c=b.b-1,bb=1/b.X;B[a][a]+=bb;B[c][c]+=bb;B[a][c]-=bb;B[c][a]-=bb;}
+  const idx=[];for(let i=0;i<n;i++)if(i!==sl)idx.push(i);
+  const Br=idx.map(i=>idx.map(j=>B[i][j])),P=idx.map(i=>buses[i].P),th=linsolve(Br,P);
+  const Va=new Array(n).fill(0);idx.forEach((i,r)=>Va[i]=th[r]);return {Va,B,idx};}
+
+function pfAddBus(t='pq',V=1,th=0,P=0,Q=0){const tb=$('pf_bus'),i=tb.rows.length+1;const r=tb.insertRow();
+  r.innerHTML=`<td>${i}</td>
+    <td><select><option value="slack">Slack</option><option value="pv">PV</option><option value="pq">PQ</option></select></td>
+    <td><input value="${V}" style="width:60px"></td><td><input value="${th}" style="width:50px"></td>
+    <td><input value="${P}" style="width:60px"></td><td><input value="${Q}" style="width:60px"></td>
+    <td><button class="del" onclick="this.closest('tr').remove();pfRenum()">×</button></td>`;
+  r.cells[1].querySelector('select').value=t;}
+function pfRenum(){[...$('pf_bus').rows].forEach((r,i)=>r.cells[0].textContent=i+1);}
+function pfAddBr(a=1,b=2,R=0.02,X=0.1,Bh=0,tap=1){const tb=$('pf_br'),r=tb.insertRow();
+  r.innerHTML=`<td><input value="${a}" style="width:42px"></td><td><input value="${b}" style="width:42px"></td>
+    <td><input value="${R}" style="width:60px"></td><td><input value="${X}" style="width:60px"></td>
+    <td><input value="${Bh}" style="width:55px"></td><td><input value="${tap}" style="width:50px"></td>
+    <td><button class="del" onclick="this.closest('tr').remove()">×</button></td>`;}
+function loadPF(){$('pf_sbase').value=100;$('pf_method').value='nr';
+  $('pf_bus').innerHTML='';$('pf_br').innerHTML='';
+  pfAddBus('slack',1.0,0,0,0);pfAddBus('pq',1.0,0,-0.5,-0.2);pfAddBus('pv',1.02,0,0.4,0);
+  pfAddBr(1,2,0.02,0.1,0,1);pfAddBr(1,3,0.02,0.1,0,1);pfAddBr(2,3,0.02,0.1,0,1);
+  solvePF();}
+function xstr(z,d=3){return `${z.re.toFixed(d)}${z.im>=0?'+':'−'}j${Math.abs(z.im).toFixed(d)}`;}
+function texCx(z,d=3){return `${(+z.re).toFixed(d)}${z.im>=0?'+':'-'}j${Math.abs(z.im).toFixed(d)}`;}
+
+function solvePF(){
+  const out=$('pf_out');
+  try{
+    const Sb=+$('pf_sbase').value, method=$('pf_method').value;
+    const buses=[...$('pf_bus').rows].map(r=>({type:r.cells[1].querySelector('select').value,
+      V:+r.cells[2].querySelector('input').value, th:(+r.cells[3].querySelector('input').value)*Math.PI/180,
+      P:+r.cells[4].querySelector('input').value, Q:+r.cells[5].querySelector('input').value}));
+    const br=[...$('pf_br').rows].map(r=>({a:+r.cells[0].querySelector('input').value,b:+r.cells[1].querySelector('input').value,
+      R:+r.cells[2].querySelector('input').value,X:+r.cells[3].querySelector('input').value,
+      Bh:+r.cells[4].querySelector('input').value,tap:+r.cells[5].querySelector('input').value}));
+    const n=buses.length;
+    if(buses.filter(b=>b.type==='slack').length!==1)throw new Error("Il faut exactement un nœud Slack (bilan).");
+    const Y=ybusBuild(n,br);
+    // state vars
+    const stθ=buses.map((b,i)=>b.type!=='slack'?'θ'+(i+1):null).filter(Boolean);
+    const stV=buses.map((b,i)=>b.type==='pq'?'|V'+(i+1)+'|':null).filter(Boolean);
+
+    let h=`<div class="step"><div class="lbl">1) Base & per-unit</div><p>S<sub>base</sub> = ${Sb} MVA. Toutes les grandeurs en pu.</p></div>`;
+    h+=`<div class="step"><div class="lbl">2) Matrice d'admittance Y<sub>bus</sub> (G + jB)</div><div class="mat">`;
+    h+=Y.map(row=>row.map(z=>xstr(z,3).padStart(16)).join('')).join('\n')+`</div></div>`;
+    h+=`<div class="step"><div class="lbl">3) Vecteur des inconnues</div><p>Slack : |V|,θ fixés. PV : θ et Q inconnus. PQ : |V| et θ inconnus.</p>
+      <div class="eq">x = [ ${[...stθ,...stV].join(', ')} ]ᵀ &nbsp; (${stθ.length+stV.length} inconnues)</div></div>`;
+
+    // initial conditions
+    const bs=buses.map(b=>({type:b.type,V:(b.type==='pq'?1.0:b.V),th:(b.type==='slack'?b.th:0),P:b.P,Q:b.Q}));
+    let Vfin,it,extra='',md='';
+    md=`## Load Flow\n\n### 1) Base\nS_base = ${Sb} MVA, grandeurs en pu.\n\n### 2) Matrice Y_bus\n`;
+    md+=`$$Y_{bus}=${'\\begin{bmatrix}'+Y.map(row=>row.map(z=>texCx(z,3)).join(' & ')).join(' \\\\ ')+'\\end{bmatrix}'}$$\n\n`;
+    md+=`### 3) Inconnues\n$$x=\\begin{bmatrix}${[...stθ,...stV].map(s=>s.replace('|','').replace('|','').replace('θ','\\theta_').replace('V','V_')).join(' \\\\ ')}\\end{bmatrix}$$\n\n`;
+
+    if(method==='dc'){
+      const r=pfDC(n,bs,br);Vfin=bs.map((b,i)=>xpolar(b.type==='slack'?b.V:1,r.Va[i]));it=null;
+      h+=`<div class="step"><div class="lbl">4) DC power flow</div><p>Hypothèses : |V|≈1, R≈0, sin θ≈θ. On résout B'·θ = P.</p><div class="mat">`;
+      h+='B'+"'"+' réduite =\n'+r.idx.map(i=>r.idx.map(j=>r.B[i][j].toFixed(3).padStart(10)).join('')).join('\n')+`</div>`;
+      h+=`<table class="out"><tr><th>Nœud</th><th>θ (°)</th></tr>`+bs.map((b,i)=>`<tr><td>${i+1}</td><td>${(r.Va[i]*DEG).toFixed(3)}</td></tr>`).join('')+`</table></div>`;
+      md+=`### 4) DC power flow\nHypothèses |V|≈1, R≈0, sin θ≈θ → $B'\\,\\theta=P$.\n\n`;
+      md+=bs.map((b,i)=>`$$\\boxed{\\,\\theta_{${i+1}}=${(r.Va[i]*DEG).toFixed(3)}^\\circ\\,}$$`).join('\n')+`\n`;
+    } else if(method==='gs'){
+      const r=pfGauss(n,bs,Y);Vfin=r.V;it=r.it;
+      h+=`<div class="step"><div class="lbl">4) Gauss-Seidel</div><p>$V_i=\\frac{1}{Y_{ii}}\\left[\\frac{P_i-jQ_i}{V_i^*}-\\sum_{k\\neq i}Y_{ik}V_k\\right]$ — convergé en <b>${it+1}</b> itérations.</p>`;
+      h+=`<table class="out"><tr><th>Nœud</th><th>Après 1ʳᵉ itér. |V|∠θ</th></tr>`+r.V1.map((v,i)=>`<tr><td>${i+1}</td><td>${xabs(v).toFixed(4)} ∠ ${(xarg(v)*DEG).toFixed(3)}°</td></tr>`).join('')+`</table></div>`;
+      md+=`### 4) Gauss-Seidel\n$$V_i=\\frac{1}{Y_{ii}}\\left[\\frac{P_i-jQ_i}{V_i^{*}}-\\sum_{k\\neq i}Y_{ik}V_k\\right]$$\nConvergence en **${it+1}** itérations.\n\n`;
+    } else {
+      const r=pfNewton(n,bs,Y);Vfin=r.Vm.map((m,i)=>xpolar(m,r.Va[i]));it=r.it;
+      h+=`<div class="step"><div class="lbl">4) Newton-Raphson</div><p>Convergé en <b>${it}</b> itérations. Jacobien de la 1ʳᵉ itération :</p><div class="mat">J = `;
+      h+=r.J0.map(row=>row.map(v=>v.toFixed(3).padStart(11)).join('')).join('\n   ')+`</div>`;
+      h+=`<div class="eq">Δx = J⁻¹·[ΔP;ΔQ] ; mismatch initial max = ${Math.max(...r.mis0.map(Math.abs)).toFixed(4)}</div></div>`;
+      md+=`### 4) Newton-Raphson\nConvergence en **${it}** itérations. Jacobien (1ʳᵉ itération) :\n`;
+      md+=`$$J=${'\\begin{bmatrix}'+r.J0.map(row=>row.map(v=>(+v).toFixed(3)).join(' & ')).join(' \\\\ ')+'\\end{bmatrix}'}$$\n`;
+      md+=`$$\\Delta x=J^{-1}\\begin{bmatrix}\\Delta P\\\\ \\Delta Q\\end{bmatrix}$$\n\n`;
+    }
+
+    // final voltages + injections + flows
+    h+=`<div class="kpis">`+Vfin.map((v,i)=>`<div class="kpi"><div class="k">Nœud ${i+1}</div><div class="v">${xabs(v).toFixed(4)}</div><div class="k">∠ ${(xarg(v)*DEG).toFixed(2)}°</div></div>`).join('')+`</div>`;
+    md+=`### 5) Tensions finales\n`+Vfin.map((v,i)=>`$$\\boxed{\\,V_{${i+1}}=${xabs(v).toFixed(4)}\\angle ${(xarg(v)*DEG).toFixed(2)}^\\circ\\ \\text{pu}\\,}$$`).join('\n')+`\n\n`;
+
+    if(method!=='dc'){
+      const inj=Vfin.map((_,i)=>pfInject(Y,Vfin,i));
+      h+=`<div class="step"><div class="lbl">5) Puissances injectées</div><table class="out"><tr><th>Nœud</th><th>P (pu)</th><th>Q (pu)</th><th>P (MW)</th><th>Q (Mvar)</th></tr>`;
+      h+=inj.map((s,i)=>`<tr><td>${i+1}</td><td>${s.re.toFixed(4)}</td><td>${s.im.toFixed(4)}</td><td>${(s.re*Sb).toFixed(1)}</td><td>${(s.im*Sb).toFixed(1)}</td></tr>`).join('')+`</table>`;
+      const loss=inj.reduce((a,s)=>a+s.re,0);
+      h+=`<div class="eq">Pertes actives totales = Σ P_i = ${loss.toFixed(4)} pu = ${(loss*Sb).toFixed(2)} MW</div></div>`;
+      md+=`### 6) Puissances injectées & pertes\n`+inj.map((s,i)=>`$$P_{${i+1}}=${s.re.toFixed(4)}\\ \\text{pu},\\quad Q_{${i+1}}=${s.im.toFixed(4)}\\ \\text{pu}$$`).join('\n');
+      md+=`\n$$\\boxed{\\,P_{pertes}=\\sum_i P_i=${loss.toFixed(4)}\\ \\text{pu}=${(loss*Sb).toFixed(2)}\\ \\text{MW}\\,}$$\n`;
+    }
+    h+=mdBlock(md);
+    out.innerHTML=h;
+  }catch(e){out.innerHTML=`<div class="err">${e.message}</div>`;}
+}
+
+/* ======================= ECONOMIC DISPATCH ======================= */
+function edDispatch(units,PD,lm){
+  const Pof=lam=>units.map(u=>{let p;
+    if(lm==='lin')p=(lam*(1-(u.B||0))-u.b)/(2*u.c);
+    else p=(lam-u.b)/(2*(u.c+lam*(lm==='quad'?(u.B||0):0)));
+    return Math.max(u.pmin,Math.min(u.pmax,p));});
+  const PL=P=>{if(lm==='quad')return units.reduce((s,u,i)=>s+(u.B||0)*P[i]*P[i],0);
+    if(lm==='lin')return units.reduce((s,u,i)=>s+(u.B||0)*P[i],0);return 0;};
+  const f=lam=>{const P=Pof(lam);return P.reduce((a,b)=>a+b,0)-PL(P)-PD;};
+  let lo=0,hi=1e6;for(let i=0;i<200;i++){const m=(lo+hi)/2;if(f(m)>0)hi=m;else lo=m;}
+  const lam=(lo+hi)/2,P=Pof(lam),pl=PL(P);
+  const cost=units.reduce((s,u,i)=>s+u.a+u.b*P[i]+u.c*P[i]*P[i],0);
+  const pen=units.map((u,i)=>lm==='quad'?1/(1-2*(u.B||0)*P[i]):(lm==='lin'?1/(1-(u.B||0)):1));
+  const binding=units.map((u,i)=>Math.abs(P[i]-u.pmax)<1e-3?'max':(Math.abs(P[i]-u.pmin)<1e-3?'min':''));
+  return {lam,P,pl,cost,pen,binding};
+}
+function edAddUnit(a=500,b=5.3,c=0.004,pmin=0,pmax=1000,B=0){const tb=$('ed_u'),i=tb.rows.length+1;const r=tb.insertRow();
+  r.innerHTML=`<td>${i}</td><td><input value="${a}" style="width:62px"></td><td><input value="${b}" style="width:55px"></td>
+    <td><input value="${c}" style="width:62px"></td><td><input value="${pmin}" style="width:55px"></td>
+    <td><input value="${pmax}" style="width:55px"></td><td><input value="${B}" style="width:62px"></td>
+    <td><button class="del" onclick="this.closest('tr').remove();edRenum()">×</button></td>`;}
+function edRenum(){[...$('ed_u').rows].forEach((r,i)=>r.cells[0].textContent=i+1);}
+function loadED(){$('ed_pd').value=800;$('ed_loss').value='none';$('ed_u').innerHTML='';
+  edAddUnit(500,5.3,0.004,200,450,0);edAddUnit(400,5.5,0.006,150,350,0);edAddUnit(200,5.8,0.009,100,225,0);
+  solveED();}
+function solveED(){
+  const out=$('ed_out');
+  try{
+    const PD=+$('ed_pd').value;
+    const units=[...$('ed_u').rows].map(r=>({a:+r.cells[1].querySelector('input').value,b:+r.cells[2].querySelector('input').value,
+      c:+r.cells[3].querySelector('input').value,pmin:+r.cells[4].querySelector('input').value,
+      pmax:+r.cells[5].querySelector('input').value,B:+r.cells[6].querySelector('input').value}));
+    if(!units.length)throw new Error("Ajoutez au moins un générateur.");
+    const lm=$('ed_loss').value, hasLoss=lm!=='none';
+    const r=edDispatch(units,PD,lm);
+
+    let h=`<div class="step"><div class="lbl">1) Coûts incrémentaux</div><p>À l'optimum, tous les coûts marginaux sont égaux à λ (sauf générateurs en butée) :</p>`;
+    h+=units.map((u,i)=>`<div class="eq">dC<sub>${i+1}</sub>/dP<sub>${i+1}</sub> = ${u.b} + ${2*u.c}·P<sub>${i+1}</sub>${lm==='quad'?` = λ(1 − 2·${u.B}·P<sub>${i+1}</sub>)`:(lm==='lin'?` = λ(1 − ${u.B})`:' = λ')}</div>`).join('')+`</div>`;
+    h+=`<div class="step"><div class="lbl">2) Équilibre</div><p>Σ P<sub>i</sub> = P<sub>D</sub>${hasLoss?' + P<sub>L</sub>':''} = ${PD}${hasLoss?' + pertes':''} MW</p></div>`;
+
+    h+=`<div class="kpis"><div class="kpi"><div class="k">λ (prix marginal)</div><div class="v">${r.lam.toFixed(3)}</div><div class="k">$/MWh</div></div>`;
+    h+=`<div class="kpi"><div class="k">Coût total</div><div class="v">${r.cost.toFixed(0)}</div><div class="k">$/h</div></div>`;
+    if(hasLoss)h+=`<div class="kpi"><div class="k">Pertes P_L</div><div class="v">${r.pl.toFixed(1)}</div><div class="k">MW</div></div>`;
+    h+=`</div>`;
+
+    h+=`<div class="step"><div class="lbl">3) Répartition optimale</div><table class="out"><tr><th>Gén.</th><th>P (MW)</th>${hasLoss?'<th>Pénalité L<sub>i</sub></th>':''}<th>Limite</th></tr>`;
+    h+=units.map((u,i)=>`<tr><td>${i+1}</td><td>${r.P[i].toFixed(2)}</td>${hasLoss?`<td>${r.pen[i].toFixed(4)}</td>`:''}<td>${r.binding[i]==='max'?'P_max ⚠':r.binding[i]==='min'?'P_min ⚠':'—'}</td></tr>`).join('');
+    h+=`<tr style="font-weight:700"><td>Σ</td><td>${r.P.reduce((a,b)=>a+b,0).toFixed(2)}</td>${hasLoss?'<td></td>':''}<td></td></tr></table>`;
+    if(r.binding.some(x=>x))h+=`<p class="note">⚠ Générateur(s) en butée : leur coût marginal ≠ λ ; ils sont fixés à leur limite et les autres ajustent.</p>`;
+    h+=`</div>`;
+
+    const coord=lm==='quad'?'(1-2B_iP_i)':(lm==='lin'?'(1-m_i)':'');
+    let md=`## Répartition économique\n\n### 1) Coûts incrémentaux\nÀ l'optimum : $\\dfrac{dC_i}{dP_i}=b_i+2c_iP_i=\\lambda${coord}$\n\n`;
+    md+=units.map((u,i)=>`$$${u.b}+${2*u.c}\\,P_{${i+1}}${lm==='quad'?`=\\lambda(1-2\\cdot${u.B}\\,P_{${i+1}})`:(lm==='lin'?`=\\lambda(1-${u.B})`:'=\\lambda')}$$`).join('\n')+`\n\n`;
+    md+=`### 2) Équilibre des puissances\n$$\\sum_i P_i=P_D${hasLoss?'+P_L':''}=${PD}${hasLoss?'+P_L':''}\\ \\text{MW}$$\n\n`;
+    md+=`### 3) Solution\n$$\\boxed{\\,\\lambda=${r.lam.toFixed(3)}\\ \\text{\\$/MWh}\\,}$$\n\n`;
+    md+=units.map((u,i)=>`$$\\boxed{\\,P_{${i+1}}=${r.P[i].toFixed(2)}\\ \\text{MW}${r.binding[i]?` \\;(\\text{${r.binding[i]==='max'?'P_{max}':'P_{min}'}})`:''}\\,}$$`).join('\n')+`\n\n`;
+    if(hasLoss){const lf=lm==='quad'?'\\dfrac{1}{1-2B_iP_i}':'\\dfrac{1}{1-m_i}';md+=`Pertes : $P_L=${r.pl.toFixed(2)}$ MW. Facteurs de pénalité $L_i=${lf}$ : ${r.pen.map((x,i)=>`$L_{${i+1}}=${x.toFixed(4)}$`).join(', ')}.\n\n`;}
+    md+=`### 4) Coût total\n$$\\boxed{\\,C_{tot}=\\sum_i\\left(a_i+b_iP_i+c_iP_i^2\\right)=${r.cost.toFixed(2)}\\ \\text{\\$/h}\\,}$$\nλ est le **prix marginal du système** (prix de marché en tarification uniforme).\n`;
+    h+=mdBlock(md);
+    out.innerHTML=h;
+  }catch(e){out.innerHTML=`<div class="err">${e.message}</div>`;}
+}
+
+/* ======================= SHORT CIRCUIT ======================= */
+const aOP=xpolar(1,2*Math.PI/3), a2OP=xpolar(1,4*Math.PI/3);
+function seqToPh(I0,I1,I2){return {
+  Ia:xadd(xadd(I0,I1),I2),
+  Ib:xadd(xadd(I0,xmul(a2OP,I1)),xmul(aOP,I2)),
+  Ic:xadd(xadd(I0,xmul(aOP,I1)),xmul(a2OP,I2))};}
+function phToSeq(Va,Vb,Vc){return {
+  V0:xscale(xadd(xadd(Va,Vb),Vc),1/3),
+  V1:xscale(xadd(xadd(Va,xmul(aOP,Vb)),xmul(a2OP,Vc)),1/3),
+  V2:xscale(xadd(xadd(Va,xmul(a2OP,Vb)),xmul(aOP,Vc)),1/3)};}
+function scFault(type,E,Z1,Z2,Z0,Zf,Zg){
+  let I0=Cx(0,0),I1=Cx(0,0),I2=Cx(0,0);
+  if(type==='tri'){I1=xdiv(E,xadd(Z1,Zf));}
+  else if(type==='slg'){I1=xdiv(E,xadd(xadd(xadd(Z0,Z1),Z2),xscale(Zf,3)));I0=I1;I2=I1;}
+  else if(type==='ll'){I1=xdiv(E,xadd(xadd(Z1,Z2),Zf));I2=xscale(I1,-1);}
+  else if(type==='dlg'){const z2f=xadd(Z2,Zf),z0f=xadd(xadd(Z0,Zf),xscale(Zg,3)),par=xdiv(xmul(z2f,z0f),xadd(z2f,z0f));
+    I1=xdiv(E,xadd(xadd(Z1,Zf),par));I2=xscale(xmul(I1,xdiv(z0f,xadd(z2f,z0f))),-1);I0=xscale(xmul(I1,xdiv(z2f,xadd(z2f,z0f))),-1);}
+  return {I0,I1,I2,...seqToPh(I0,I1,I2)};}
+function scTypeToggle(){const sym=$('sc_type').value==='sym';$('sc_symin').style.display=sym?'block':'none';$('sc_zin').style.display=sym?'none':'block';
+  if(sym){const f=$('sc_dir').value==='f';$('sc_l1').innerHTML=f?'V<sub>a</sub>':'V<sub>0</sub>';$('sc_l2').innerHTML=f?'V<sub>b</sub>':'V<sub>1</sub>';$('sc_l3').innerHTML=f?'V<sub>c</sub>':'V<sub>2</sub>';}}
+function loadSC(){$('sc_type').value='slg';$('sc_Ere').value=1;$('sc_Eim').value=0;$('sc_Z1re').value=0;$('sc_Z1im').value=0.2;
+  $('sc_Z2re').value=0;$('sc_Z2im').value=0.2;$('sc_Z0re').value=0;$('sc_Z0im').value=0.05;$('sc_Zfre').value=0;$('sc_Zfim').value=0;
+  $('sc_Zgre').value=0;$('sc_Zgim').value=0;$('sc_sb').value=100;$('sc_kv').value=20;scTypeToggle();solveSC();}
+const scPol=z=>`${xabs(z).toFixed(4)} ∠ ${(xarg(z)*DEG).toFixed(1)}°`;
+const scTexPol=z=>`${xabs(z).toFixed(4)}\\angle ${(xarg(z)*DEG).toFixed(1)}^\\circ`;
+function solveSC(){
+  const out=$('sc_out');
+  try{
+    const type=$('sc_type').value;
+    if(type==='sym'){
+      const dir=$('sc_dir').value, m=[+$('sc_m1').value,+$('sc_m2').value,+$('sc_m3').value], ang=[+$('sc_a1').value,+$('sc_a2').value,+$('sc_a3').value];
+      const v=m.map((mm,i)=>xpolar(mm,ang[i]*Math.PI/180));
+      let h,md;
+      if(dir==='f'){const s=phToSeq(v[0],v[1],v[2]);
+        h=`<div class="step"><div class="lbl">Composantes symétriques (abc → 012)</div>
+          <div class="eq">V₀ = ⅓(Vₐ+V_b+V_c) = ${scPol(s.V0)}</div>
+          <div class="eq">V₁ = ⅓(Vₐ+a·V_b+a²·V_c) = ${scPol(s.V1)}</div>
+          <div class="eq">V₂ = ⅓(Vₐ+a²·V_b+a·V_c) = ${scPol(s.V2)}</div></div>`;
+        md=`## Composantes symétriques (abc → 012)\nAvec $a=1\\angle120^\\circ$ :\n$$V_0=\\tfrac13(V_a+V_b+V_c)=${scTexPol(s.V0)}$$\n$$V_1=\\tfrac13(V_a+aV_b+a^2V_c)=${scTexPol(s.V1)}$$\n$$V_2=\\tfrac13(V_a+a^2V_b+aV_c)=${scTexPol(s.V2)}$$\n`;
+      }else{const p=seqToPh(v[0],v[1],v[2]);
+        h=`<div class="step"><div class="lbl">Reconstruction (012 → abc)</div>
+          <div class="eq">Vₐ = V₀+V₁+V₂ = ${scPol(p.Ia)}</div>
+          <div class="eq">V_b = V₀+a²V₁+aV₂ = ${scPol(p.Ib)}</div>
+          <div class="eq">V_c = V₀+aV₁+a²V₂ = ${scPol(p.Ic)}</div></div>`;
+        md=`## Reconstruction (012 → abc)\n$$V_a=V_0+V_1+V_2=${scTexPol(p.Ia)}$$\n$$V_b=V_0+a^2V_1+aV_2=${scTexPol(p.Ib)}$$\n$$V_c=V_0+aV_1+a^2V_2=${scTexPol(p.Ic)}$$\n`;
+      }
+      out.innerHTML=h+mdBlock(md);return;
+    }
+    const E=Cx(+$('sc_Ere').value,+$('sc_Eim').value),Z1=Cx(+$('sc_Z1re').value,+$('sc_Z1im').value),
+      Z2=Cx(+$('sc_Z2re').value,+$('sc_Z2im').value),Z0=Cx(+$('sc_Z0re').value,+$('sc_Z0im').value),
+      Zf=Cx(+$('sc_Zfre').value,+$('sc_Zfim').value),Zg=Cx(+$('sc_Zgre').value,+$('sc_Zgim').value);
+    const Sb=+$('sc_sb').value,kv=+$('sc_kv').value, Ibase=Sb*1000/(Math.sqrt(3)*kv); // A
+    const r=scFault(type,E,Z1,Z2,Z0,Zf,Zg);
+    const names={tri:'Défaut triphasé symétrique',slg:'Défaut monophasé-terre (SLG)',ll:'Défaut biphasé (LL)',dlg:'Défaut biphasé-terre (DLG)'};
+    const formula={tri:'I_{a1}=\\dfrac{E}{Z_1+Z_f}',slg:'I_{a0}=I_{a1}=I_{a2}=\\dfrac{E}{Z_0+Z_1+Z_2+3Z_f}',
+      ll:'I_{a1}=-I_{a2}=\\dfrac{E}{Z_1+Z_2+Z_f}',dlg:'I_{a1}=\\dfrac{E}{Z_1+Z_f+\\dfrac{(Z_2+Z_f)(Z_0+Z_f+3Z_g)}{Z_2+Z_f+Z_0+Z_f+3Z_g}}'};
+    const Im=xabs(type==='slg'?r.Ia:(type==='ll'?r.Ib:r.Ia)); // characteristic fault current magnitude
+    const lbl=type==='slg'?'I_a':(type==='ll'?'I_b':'I_f');
+
+    let h=`<div class="step"><div class="lbl">1) ${names[type]}</div><div class="eq">$${formula[type]}$</div></div>`;
+    h+=`<div class="step"><div class="lbl">2) Courants de séquence (pu)</div>
+      <div class="eq">I₀ = ${scPol(r.I0)} ; I₁ = ${scPol(r.I1)} ; I₂ = ${scPol(r.I2)}</div></div>`;
+    h+=`<div class="step"><div class="lbl">3) Courants de phase (pu)</div><table class="out"><tr><th>Phase</th><th>Courant (pu)</th><th>Courant (kA)</th></tr>`;
+    h+=[['a',r.Ia],['b',r.Ib],['c',r.Ic]].map(([n,I])=>`<tr><td>I${n}</td><td>${scPol(I)}</td><td>${(xabs(I)*Ibase/1000).toFixed(3)}</td></tr>`).join('')+`</table></div>`;
+    h+=`<div class="kpis"><div class="kpi"><div class="k">|${lbl.replace('_','')}| courant de défaut</div><div class="v">${Im.toFixed(3)}</div><div class="k">pu</div></div>`;
+    h+=`<div class="kpi"><div class="k">soit</div><div class="v">${(Im*Ibase/1000).toFixed(2)}</div><div class="k">kA</div></div>`;
+    h+=`<div class="kpi"><div class="k">Puissance de c-c</div><div class="v">${(Im*Sb).toFixed(0)}</div><div class="k">MVA</div></div></div>`;
+
+    let md=`## ${names[type]}\n\n### 1) Formule\n$$${formula[type]}$$\n\n### 2) Courants de séquence (pu)\n`;
+    md+=`$$I_0=${scTexPol(r.I0)},\\quad I_1=${scTexPol(r.I1)},\\quad I_2=${scTexPol(r.I2)}$$\n\n`;
+    md+=`### 3) Courants de phase (pu)\n$$I_a=${scTexPol(r.Ia)},\\; I_b=${scTexPol(r.Ib)},\\; I_c=${scTexPol(r.Ic)}$$\n\n`;
+    md+=`### 4) Résultat\n$$\\boxed{\\,|${lbl}|=${Im.toFixed(4)}\\ \\text{pu}=${(Im*Ibase/1000).toFixed(2)}\\ \\text{kA}\\,}$$\n`;
+    md+=`Puissance de court-circuit : $S_{cc}=|${lbl}|\\cdot S_{base}=${(Im*Sb).toFixed(0)}$ MVA (avec $I_{base}=${(Ibase/1000).toFixed(3)}$ kA).\n`;
+    out.innerHTML=h+mdBlock(md);
+  }catch(e){out.innerHTML=`<div class="err">${e.message}</div>`;}
+}
+
+/* ======================= LOAD-FREQUENCY CONTROL ======================= */
+function lfcAddGen(R=0.05){const tb=$('lfc_g'),i=tb.rows.length+1,r=tb.insertRow();
+  r.innerHTML=`<td>${i}</td><td><input value="${R}" style="width:80px"></td><td><button class="del" onclick="this.closest('tr').remove();lfcRenum()">×</button></td>`;}
+function lfcRenum(){[...$('lfc_g').rows].forEach((r,i)=>r.cells[0].textContent=i+1);}
+function lfcToggle(){const two=$('lfc_mode').value==='2';$('lfc_2').style.display=two?'block':'none';$('lfc_1').style.display=two?'none':'block';}
+function loadLFC(){$('lfc_f0').value=50;$('lfc_mode').value='1';$('lfc_g').innerHTML='';lfcAddGen(0.05);lfcAddGen(0.0625);
+  $('lfc_D').value=0.8;$('lfc_dpl').value=0.2;lfcToggle();solveLFC();}
+function solveLFC(){
+  const out=$('lfc_out');
+  try{
+    const f0=+$('lfc_f0').value, mode=$('lfc_mode').value;
+    if(mode==='2'){
+      const b1=+$('lfc_b1').value,b2=+$('lfc_b2').value,B1=+$('lfc_B1').value,B2=+$('lfc_B2').value,dPL1=+$('lfc_dpl1').value;
+      const df=-dPL1/(b1+b2), dPtie=df*b2, ace1=dPtie+B1*df, ace2=-dPtie+B2*df;
+      let h=`<div class="step"><div class="lbl">1) Écart de fréquence</div><div class="eq">Δf = −ΔP_L1/(β₁+β₂) = −${dPL1}/(${b1}+${b2}) = ${df.toFixed(5)} pu = ${(df*f0).toFixed(4)} Hz</div></div>`;
+      h+=`<div class="step"><div class="lbl">2) Échange sur la ligne d'interconnexion</div><div class="eq">ΔP_tie = Δf·β₂ = ${dPtie.toFixed(5)} pu</div><p>${dPtie<0?'La zone 1 importe '+Math.abs(dPtie).toFixed(4)+' pu depuis la zone 2.':'La zone 1 exporte vers la zone 2.'}</p></div>`;
+      h+=`<div class="step"><div class="lbl">3) Erreurs de réglage de zone (ACE)</div><div class="eq">ACE₁ = ΔP_tie + B₁·Δf = ${ace1.toFixed(5)}</div><div class="eq">ACE₂ = −ΔP_tie + B₂·Δf = ${ace2.toFixed(5)}</div></div>`;
+      h+=`<div class="kpis"><div class="kpi"><div class="k">Δf</div><div class="v">${(df*f0).toFixed(3)}</div><div class="k">Hz</div></div><div class="kpi"><div class="k">ΔP_tie</div><div class="v">${dPtie.toFixed(4)}</div><div class="k">pu</div></div></div>`;
+      h+=`<p class="note">Avec le secondaire (AGC) et B=β, ACE→0 : la zone en défaut absorbe toute la variation, f revient à f₀ et le tie-line à sa consigne.</p>`;
+      let md=`## Réglage f/P — interconnexion (deux zones)\n\n### 1) Écart de fréquence\n$$\\Delta f=\\frac{-\\Delta P_{L1}}{\\beta_1+\\beta_2}=\\frac{-${dPL1}}{${b1}+${b2}}=\\boxed{\\,${df.toFixed(5)}\\ \\text{pu}=${(df*f0).toFixed(4)}\\ \\text{Hz}\\,}$$\n\n`;
+      md+=`### 2) Échange tie-line\n$$\\boxed{\\,\\Delta P_{tie}=\\Delta f\\,\\beta_2=${dPtie.toFixed(5)}\\ \\text{pu}\\,}$$\n\n`;
+      md+=`### 3) ACE\n$$ACE_1=\\Delta P_{tie}+B_1\\Delta f=${ace1.toFixed(5)},\\qquad ACE_2=-\\Delta P_{tie}+B_2\\Delta f=${ace2.toFixed(5)}$$\n`;
+      out.innerHTML=h+mdBlock(md);return;
+    }
+    const Rs=[...$('lfc_g').rows].map(r=>+r.cells[1].querySelector('input').value);
+    if(!Rs.length)throw new Error("Ajoutez au moins un générateur.");
+    const D=+$('lfc_D').value, dPL=+$('lfc_dpl').value;
+    const invR=Rs.reduce((s,R)=>s+1/R,0), beta=invR+D, df=-dPL/beta, dPgen=Rs.map(R=>-df/R), dPload=D*df;
+    let h=`<div class="step"><div class="lbl">1) Caractéristique de réponse en fréquence</div><div class="eq">β = Σ(1/R_i) + D = ${invR.toFixed(3)} + ${D} = ${beta.toFixed(3)} pu MW/pu Hz</div></div>`;
+    h+=`<div class="step"><div class="lbl">2) Écart de fréquence en régime permanent</div><div class="eq">Δf = −ΔP_L/β = −${dPL}/${beta.toFixed(3)} = ${df.toFixed(6)} pu = ${(df*f0).toFixed(4)} Hz</div><div class="eq">f = f₀ + Δf = ${(f0+df*f0).toFixed(4)} Hz</div></div>`;
+    h+=`<div class="step"><div class="lbl">3) Partage entre générateurs</div><table class="out"><tr><th>Gén.</th><th>R (pu)</th><th>ΔP_i = −Δf/R_i (pu)</th></tr>`;
+    h+=Rs.map((R,i)=>`<tr><td>${i+1}</td><td>${R}</td><td>${dPgen[i].toFixed(4)}</td></tr>`).join('');
+    h+=`<tr style="font-weight:700"><td colspan="2">Σ générateurs</td><td>${dPgen.reduce((a,b)=>a+b,0).toFixed(4)}</td></tr></table>`;
+    if(D>0)h+=`<p class="note">La charge sensible à la fréquence varie de D·Δf = ${dPload.toFixed(4)} pu ; Σ(ΔP_gen) − D·Δf = ${(dPgen.reduce((a,b)=>a+b,0)-dPload).toFixed(4)} = ΔP_L.</p>`;
+    h+=`</div><div class="kpis"><div class="kpi"><div class="k">β</div><div class="v">${beta.toFixed(2)}</div><div class="k">pu/pu</div></div><div class="kpi"><div class="k">Δf</div><div class="v">${(df*f0).toFixed(3)}</div><div class="k">Hz</div></div><div class="kpi"><div class="k">f finale</div><div class="v">${(f0+df*f0).toFixed(3)}</div><div class="k">Hz</div></div></div>`;
+    h+=`<p class="note">Réglage primaire seul : f ne revient pas à f₀ (écart résiduel). Le réglage secondaire (AGC) ramène f à f₀.</p>`;
+    let md=`## Réglage f/P — réponse en fréquence (une zone)\n\n### 1) Caractéristique β\n$$\\beta=\\sum_i\\frac1{R_i}+D=${invR.toFixed(3)}+${D}=${beta.toFixed(3)}\\ \\text{pu MW/pu Hz}$$\n\n`;
+    md+=`### 2) Écart de fréquence\n$$\\Delta f=\\frac{-\\Delta P_L}{\\beta}=\\frac{-${dPL}}{${beta.toFixed(3)}}=\\boxed{\\,${df.toFixed(6)}\\ \\text{pu}=${(df*f0).toFixed(4)}\\ \\text{Hz}\\,}$$\n$$f=f_0+\\Delta f=${(f0+df*f0).toFixed(4)}\\ \\text{Hz}$$\n\n`;
+    md+=`### 3) Partage entre générateurs\n$$\\Delta P_i=-\\frac{\\Delta f}{R_i}$$\n`;
+    md+=Rs.map((R,i)=>`$$\\boxed{\\,\\Delta P_{${i+1}}=${dPgen[i].toFixed(4)}\\ \\text{pu}\\,}$$`).join('\n')+`\n\n`;
+    md+=`Réglage primaire seul → écart de fréquence résiduel ; le réglage secondaire (AGC) ramène f à f₀.\n`;
+    out.innerHTML=h+mdBlock(md);
+  }catch(e){out.innerHTML=`<div class="err">${e.message}</div>`;}
+}
+
+/* init */
+loadSE(); loadRel(); loadEACopen(); loadPF(); loadED(); loadSC(); loadLFC();
+</script>
+</body>
+</html>
